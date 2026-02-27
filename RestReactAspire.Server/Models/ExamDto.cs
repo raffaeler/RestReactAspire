@@ -30,4 +30,5 @@ public record ExamResponse(
 
 public record ExamListResponse(
     IReadOnlyList<ExamResponse> Items,
+    PaginationInfo Pagination,
     IReadOnlyList<Link> Links);

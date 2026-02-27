@@ -25,6 +25,7 @@ public record DoctorResponse(
 
 public record DoctorListResponse(
     IReadOnlyList<DoctorResponse> Items,
+    PaginationInfo Pagination,
     IReadOnlyList<Link> Links);
 
 public record AssignDoctorRequest(Guid? DoctorId);

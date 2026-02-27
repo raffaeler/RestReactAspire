@@ -1,4 +1,4 @@
-import type { Link } from './hateoas';
+import type { Link, PaginationInfo } from './hateoas';
 
 export interface Doctor {
   id: string;
@@ -12,6 +12,7 @@ export interface Doctor {
 
 export interface DoctorList {
   items: Doctor[];
+  pagination: PaginationInfo;
   links: Link[];
 }
 

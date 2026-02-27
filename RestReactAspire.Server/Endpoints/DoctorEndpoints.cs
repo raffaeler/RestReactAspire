@@ -24,20 +24,22 @@ public static class DoctorEndpoints
         return group;
     }
 
-    private static IResult GetAll(DoctorStore store, ILogger<DoctorStore> logger)
+    private static IResult GetAll(DoctorStore store, ILogger<DoctorStore> logger, int page = 1, int pageSize = 10)
     {
         using var activity = DoctorTelemetry.ActivitySource.StartActivity("GetAllDoctors");
 
-        logger.LogInformation("Retrieving all doctors");
+        logger.LogInformation("Retrieving doctors page {Page} with size {PageSize}", page, pageSize);
 
-        var doctors = store.GetAll();
+        var (doctors, totalCount) = store.GetPaged(page, pageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         activity?.SetTag("doctor.count", doctors.Count);
+        activity?.SetTag("doctor.totalCount", totalCount);
 
         var items = doctors.Select(ToDoctorResponse).ToList();
-        var response = new DoctorListResponse(items, [
-            new Link("self", "/api/doctors", "GET"),
-            new Link("create", "/api/doctors", "POST")
-        ]);
+        var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
+        var links = PaginationLinks.Build("/api/doctors", page, pageSize, totalPages,
+            new Link("create", "/api/doctors", "POST"));
+        var response = new DoctorListResponse(items, pagination, links);
 
         return Results.Ok(response);
     }
@@ -107,7 +109,7 @@ public static class DoctorEndpoints
         return Results.NoContent();
     }
 
-    private static IResult GetByDoctor(Guid doctorId, ExamStore examStore, DoctorStore doctorStore, ILogger<DoctorStore> logger)
+    private static IResult GetByDoctor(Guid doctorId, ExamStore examStore, DoctorStore doctorStore, ILogger<DoctorStore> logger, int page = 1, int pageSize = 10)
     {
         using var activity = DoctorTelemetry.ActivitySource.StartActivity("GetExamsByDoctor");
         activity?.SetTag("doctor.id", doctorId.ToString());
@@ -119,16 +121,19 @@ public static class DoctorEndpoints
             return Results.NotFound();
         }
 
-        logger.LogInformation("Retrieving exams for doctor {DoctorId}", doctorId);
+        logger.LogInformation("Retrieving exams for doctor {DoctorId} page {Page} with size {PageSize}", doctorId, page, pageSize);
 
-        var exams = examStore.GetByDoctorId(doctorId);
+        var (exams, totalCount) = examStore.GetByDoctorIdPaged(doctorId, page, pageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         activity?.SetTag("exam.count", exams.Count);
+        activity?.SetTag("exam.totalCount", totalCount);
 
         var items = exams.Select(ExamEndpoints.ToExamResponse).ToList();
-        var response = new ExamListResponse(items, [
-            new Link("self", $"/api/doctors/{doctorId}/exams", "GET"),
-            new Link("doctor", $"/api/doctors/{doctorId}", "GET")
-        ]);
+        var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
+        var basePath = $"/api/doctors/{doctorId}/exams";
+        var links = PaginationLinks.Build(basePath, page, pageSize, totalPages,
+            new Link("doctor", $"/api/doctors/{doctorId}", "GET"));
+        var response = new ExamListResponse(items, pagination, links);
 
         return Results.Ok(response);
     }

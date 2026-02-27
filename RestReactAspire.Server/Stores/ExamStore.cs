@@ -14,11 +14,34 @@ public class ExamStore
 
     public IReadOnlyList<Exam> GetAll() => [.. _exams.FindAll()];
 
+    public (IReadOnlyList<Exam> Items, int TotalCount) GetPaged(int page, int pageSize)
+    {
+        var totalCount = _exams.Count();
+        var items = _exams.FindAll().Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
+
     public IReadOnlyList<Exam> GetByPatientId(Guid patientId) =>
         [.. _exams.Find(e => e.PatientId == patientId)];
 
+    public (IReadOnlyList<Exam> Items, int TotalCount) GetByPatientIdPaged(Guid patientId, int page, int pageSize)
+    {
+        var all = _exams.Find(e => e.PatientId == patientId).ToList();
+        var totalCount = all.Count;
+        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
+
     public IReadOnlyList<Exam> GetByDoctorId(Guid doctorId) =>
         [.. _exams.Find(e => e.DoctorId == doctorId)];
+
+    public (IReadOnlyList<Exam> Items, int TotalCount) GetByDoctorIdPaged(Guid doctorId, int page, int pageSize)
+    {
+        var all = _exams.Find(e => e.DoctorId == doctorId).ToList();
+        var totalCount = all.Count;
+        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
 
     public Exam? GetById(Guid id) => _exams.FindById(id);
 

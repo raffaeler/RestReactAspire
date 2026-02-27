@@ -4,6 +4,13 @@ export interface Link {
   method: string;
 }
 
+export interface PaginationInfo {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface ApiRoot {
   links: Link[];
 }

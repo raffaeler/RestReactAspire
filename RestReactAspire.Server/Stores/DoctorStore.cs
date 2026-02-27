@@ -14,6 +14,13 @@ public class DoctorStore
 
     public IReadOnlyList<Doctor> GetAll() => [.. _doctors.FindAll()];
 
+    public (IReadOnlyList<Doctor> Items, int TotalCount) GetPaged(int page, int pageSize)
+    {
+        var totalCount = _doctors.Count();
+        var items = _doctors.FindAll().Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
+
     public Doctor? GetById(Guid id) => _doctors.FindById(id);
 
     public Doctor Add(CreateDoctorRequest request)

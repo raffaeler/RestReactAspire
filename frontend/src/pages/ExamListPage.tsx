@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Alert, CircularProgress, Box, Chip,
+  TablePagination,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -19,29 +20,35 @@ export default function ExamListPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const paginationParams = `?page=${page + 1}&pageSize=${rowsPerPage}`;
       if (patientId) {
         const patientData = await apiClient.get<Patient>(`/api/patients/${patientId}`);
         setPatient(patientData);
         const examsLink = apiClient.findLink(patientData.links, 'exams');
         if (!examsLink) throw new Error('Exams link not found on patient');
-        const data = await apiClient.get<ExamList>(examsLink.href);
+        const data = await apiClient.get<ExamList>(`${examsLink.href}${paginationParams}`);
         setExams(data.items);
+        setTotalCount(data.pagination.totalCount);
       } else {
         const link = await apiClient.getLink('exams');
-        const data = await apiClient.get<ExamList>(link.href);
+        const data = await apiClient.get<ExamList>(`${link.href}${paginationParams}`);
         setExams(data.items);
+        setTotalCount(data.pagination.totalCount);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load exams');
     } finally {
       setLoading(false);
     }
-  }, [patientId]);
+  }, [patientId, page, rowsPerPage]);
 
   useEffect(() => { fetchExams(); }, [fetchExams]);
 
@@ -57,6 +64,15 @@ export default function ExamListPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete exam');
     }
+  };
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   const statusColor = (status: string): 'default' | 'primary' | 'success' | 'error' => {
@@ -100,45 +116,56 @@ export default function ExamListPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {exams.length === 0 ? (
+      {exams.length === 0 && totalCount === 0 ? (
         <Alert severity="info">No exams found. Add a new exam to get started.</Alert>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Type</TableCell>
-                <TableCell>Scheduled Date</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Results</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {exams.map((exam) => (
-                <TableRow key={exam.id} hover>
-                  <TableCell>{exam.type}</TableCell>
-                  <TableCell>{new Date(exam.scheduledDate).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Chip label={exam.status} color={statusColor(exam.status)} size="small" />
-                  </TableCell>
-                  <TableCell>{exam.results ?? '—'}</TableCell>
-                  <TableCell align="right">
-                    <IconButton aria-label="view" onClick={() => navigate(`/exams/${exam.id}`)}>
-                      <VisibilityIcon />
-                    </IconButton>
-                    <IconButton aria-label="edit" onClick={() => navigate(`/exams/${exam.id}/edit`)}>
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton aria-label="delete" onClick={() => handleDelete(exam)} color="error">
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
+        <Paper>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Type</TableCell>
+                  <TableCell>Scheduled Date</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Results</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {exams.map((exam) => (
+                  <TableRow key={exam.id} hover>
+                    <TableCell>{exam.type}</TableCell>
+                    <TableCell>{new Date(exam.scheduledDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Chip label={exam.status} color={statusColor(exam.status)} size="small" />
+                    </TableCell>
+                    <TableCell>{exam.results ?? '—'}</TableCell>
+                    <TableCell align="right">
+                      <IconButton aria-label="view" onClick={() => navigate(`/exams/${exam.id}`)}>
+                        <VisibilityIcon />
+                      </IconButton>
+                      <IconButton aria-label="edit" onClick={() => navigate(`/exams/${exam.id}/edit`)}>
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton aria-label="delete" onClick={() => handleDelete(exam)} color="error">
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            component="div"
+            count={totalCount}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25]}
+          />
+        </Paper>
       )}
     </>
   );

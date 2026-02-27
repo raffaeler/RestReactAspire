@@ -17,20 +17,22 @@ public static class PatientEndpoints
         return group;
     }
 
-    private static IResult GetAll(PatientStore store, ILogger<PatientStore> logger)
+    private static IResult GetAll(PatientStore store, ILogger<PatientStore> logger, int page = 1, int pageSize = 10)
     {
         using var activity = PatientTelemetry.ActivitySource.StartActivity("GetAllPatients");
 
-        logger.LogInformation("Retrieving all patients");
+        logger.LogInformation("Retrieving patients page {Page} with size {PageSize}", page, pageSize);
 
-        var patients = store.GetAll();
+        var (patients, totalCount) = store.GetPaged(page, pageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         activity?.SetTag("patient.count", patients.Count);
+        activity?.SetTag("patient.totalCount", totalCount);
 
         var items = patients.Select(ToPatientResponse).ToList();
-        var response = new PatientListResponse(items, [
-            new Link("self", "/api/patients", "GET"),
-            new Link("create", "/api/patients", "POST")
-        ]);
+        var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
+        var links = PaginationLinks.Build("/api/patients", page, pageSize, totalPages,
+            new Link("create", "/api/patients", "POST"));
+        var response = new PatientListResponse(items, pagination, links);
 
         return Results.Ok(response);
     }
