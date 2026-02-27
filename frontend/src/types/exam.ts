@@ -6,6 +6,9 @@ export interface Exam {
   doctorId: string | null;
   type: string;
   scheduledDate: string;
+  scheduledTime: string | null;
+  durationMinutes: number | null;
+  endTime: string | null;
   status: string;
   results: string | null;
   notes: string | null;
@@ -24,6 +27,8 @@ export interface CreateExamRequest {
   doctorId: string | null;
   type: string;
   scheduledDate: string;
+  scheduledTime: string | null;
+  durationMinutes: number | null;
   status: string;
   results: string | null;
   notes: string | null;
@@ -33,6 +38,8 @@ export interface UpdateExamRequest {
   doctorId: string | null;
   type: string;
   scheduledDate: string;
+  scheduledTime: string | null;
+  durationMinutes: number | null;
   status: string;
   results: string | null;
   notes: string | null;

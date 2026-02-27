@@ -19,6 +19,11 @@ public static class LiteDbFactory
                 deserialize: (BsonValue bson) => DateOnly.ParseExact(bson.AsString, "O", CultureInfo.InvariantCulture)
             );
 
+            BsonMapper.Global.RegisterType(
+                serialize: (TimeOnly t) => new BsonValue(t.ToString("O", CultureInfo.InvariantCulture)),
+                deserialize: (BsonValue bson) => TimeOnly.ParseExact(bson.AsString, "O", CultureInfo.InvariantCulture)
+            );
+
             _configured = true;
         }
     }

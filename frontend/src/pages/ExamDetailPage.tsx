@@ -147,6 +147,18 @@ export default function ExamDetailPage() {
             <Typography>{new Date(exam.scheduledDate).toLocaleDateString()}</Typography>
           </Box>
           <Box>
+            <Typography variant="subtitle2" color="text.secondary">Scheduled Time</Typography>
+            <Typography>{exam.scheduledTime ?? 'Not set'}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary">Duration</Typography>
+            <Typography>{exam.durationMinutes != null ? `${exam.durationMinutes} minutes` : 'Not set'}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary">End Time</Typography>
+            <Typography>{exam.endTime ?? 'Not available'}</Typography>
+          </Box>
+          <Box>
             <Typography variant="subtitle2" color="text.secondary">Status</Typography>
             <Chip label={exam.status} color={statusColor(exam.status)} size="small" />
           </Box>

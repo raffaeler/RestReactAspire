@@ -51,7 +51,7 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     public async Task CreateExam_ReturnsCreated_WithHateoasLinks()
     {
         var patient = await CreatePatientAsync();
-        var request = new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);
+        var request = new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 6, 15), new TimeOnly(9, 0), 30, "Scheduled", null, null);
 
         var response = await _client.PostAsJsonAsync("/api/exams", request);
 
@@ -73,7 +73,7 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task CreateExam_ReturnsNotFound_WhenPatientMissing()
     {
-        var request = new CreateExamRequest(Guid.NewGuid(), null, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);
+        var request = new CreateExamRequest(Guid.NewGuid(), null, "Blood Test", new DateOnly(2025, 6, 15), new TimeOnly(9, 0), 30, "Scheduled", null, null);
         var response = await _client.PostAsJsonAsync("/api/exams", request);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -89,7 +89,7 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     public async Task CreateAndGetExam_RoundTrips()
     {
         var patient = await CreatePatientAsync();
-        var request = new CreateExamRequest(patient.Id, null, "X-Ray", new DateOnly(2025, 7, 1), "Scheduled", null, "Chest X-Ray");
+        var request = new CreateExamRequest(patient.Id, null, "X-Ray", new DateOnly(2025, 7, 1), new TimeOnly(10, 30), 15, "Scheduled", null, "Chest X-Ray");
         var createResponse = await _client.PostAsJsonAsync("/api/exams", request);
         createResponse.EnsureSuccessStatusCode();
 
@@ -110,12 +110,12 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     public async Task UpdateExam_ReturnsOk_WithUpdatedData()
     {
         var patient = await CreatePatientAsync();
-        var createReq = new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);
+        var createReq = new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 6, 15), new TimeOnly(9, 0), 30, "Scheduled", null, null);
         var createResp = await _client.PostAsJsonAsync("/api/exams", createReq);
         var created = await createResp.Content.ReadFromJsonAsync<ExamResponse>();
         Assert.NotNull(created);
 
-        var updateReq = new UpdateExamRequest(null, "Blood Test", new DateOnly(2025, 6, 15), "Completed", "Normal levels", "Annual checkup");
+        var updateReq = new UpdateExamRequest(null, "Blood Test", new DateOnly(2025, 6, 15), new TimeOnly(9, 0), 30, "Completed", "Normal levels", "Annual checkup");
         var updateResp = await _client.PutAsJsonAsync($"/api/exams/{created.Id}", updateReq);
         updateResp.EnsureSuccessStatusCode();
 
@@ -130,7 +130,7 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     public async Task DeleteExam_ReturnsNoContent()
     {
         var patient = await CreatePatientAsync();
-        var request = new CreateExamRequest(patient.Id, null, "MRI", new DateOnly(2025, 8, 1), "Scheduled", null, null);
+        var request = new CreateExamRequest(patient.Id, null, "MRI", new DateOnly(2025, 8, 1), new TimeOnly(14, 0), 60, "Scheduled", null, null);
         var createResp = await _client.PostAsJsonAsync("/api/exams", request);
         var created = await createResp.Content.ReadFromJsonAsync<ExamResponse>();
         Assert.NotNull(created);
@@ -145,7 +145,7 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task UpdateExam_ReturnsNotFound_WhenMissing()
     {
-        var request = new UpdateExamRequest(null, "MRI", new DateOnly(2025, 7, 1), "Completed", null, null);
+        var request = new UpdateExamRequest(null, "MRI", new DateOnly(2025, 7, 1), new TimeOnly(14, 0), 60, "Completed", null, null);
         var response = await _client.PutAsJsonAsync($"/api/exams/{Guid.NewGuid()}", request);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -164,11 +164,11 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
         var patient2 = await CreatePatientAsync();
 
         await _client.PostAsJsonAsync("/api/exams",
-            new CreateExamRequest(patient1.Id, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+            new CreateExamRequest(patient1.Id, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
         await _client.PostAsJsonAsync("/api/exams",
-            new CreateExamRequest(patient1.Id, null, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+            new CreateExamRequest(patient1.Id, null, "X-Ray", new DateOnly(2025, 6, 2), new TimeOnly(10, 0), 15, "Scheduled", null, null));
         await _client.PostAsJsonAsync("/api/exams",
-            new CreateExamRequest(patient2.Id, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+            new CreateExamRequest(patient2.Id, null, "MRI", new DateOnly(2025, 6, 3), new TimeOnly(14, 0), 60, "Scheduled", null, null));
 
         var response = await _client.GetAsync($"/api/patients/{patient1.Id}/exams");
         response.EnsureSuccessStatusCode();
@@ -203,8 +203,8 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     public async Task GetExams_WithSearch_ReturnsFilteredResults()
     {
         var patient = await CreatePatientAsync();
-        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Echocardiogram", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Ultrasound", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Echocardiogram", new DateOnly(2025, 6, 1), new TimeOnly(9, 0), 45, "Scheduled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Ultrasound", new DateOnly(2025, 6, 2), new TimeOnly(11, 0), 30, "Scheduled", null, null));
 
         var response = await _client.GetAsync("/api/exams?search=Echocardiogram");
         response.EnsureSuccessStatusCode();
@@ -218,8 +218,8 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     public async Task GetExams_WithSearch_ByStatus()
     {
         var patient = await CreatePatientAsync();
-        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 9, 1), "Cancelled", null, null));
-        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "X-Ray", new DateOnly(2025, 9, 2), "Scheduled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 9, 1), new TimeOnly(8, 0), 20, "Cancelled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "X-Ray", new DateOnly(2025, 9, 2), new TimeOnly(10, 0), 15, "Scheduled", null, null));
 
         var response = await _client.GetAsync("/api/exams?search=Cancelled");
         response.EnsureSuccessStatusCode();
@@ -233,8 +233,8 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
     public async Task GetPatientExams_WithSearch_ReturnsFilteredResults()
     {
         var patient = await CreatePatientAsync();
-        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Colonoscopy", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Colonoscopy", new DateOnly(2025, 6, 1), new TimeOnly(7, 30), 60, "Scheduled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "X-Ray", new DateOnly(2025, 6, 2), new TimeOnly(10, 0), 15, "Scheduled", null, null));
 
         var response = await _client.GetAsync($"/api/patients/{patient.Id}/exams?search=Colonoscopy");
         response.EnsureSuccessStatusCode();

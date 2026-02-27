@@ -205,6 +205,9 @@ export default function ExamListPage() {
                       Scheduled Date
                     </TableSortLabel>
                   </TableCell>
+                  <TableCell>Time</TableCell>
+                  <TableCell>Duration</TableCell>
+                  <TableCell>End Time</TableCell>
                   <TableCell sortDirection={sortBy === 'status' ? sortDirection : false}>
                     <TableSortLabel
                       active={sortBy === 'status'}
@@ -231,6 +234,9 @@ export default function ExamListPage() {
                   <TableRow key={exam.id} hover>
                     <TableCell>{exam.type}</TableCell>
                     <TableCell>{new Date(exam.scheduledDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{exam.scheduledTime ?? '—'}</TableCell>
+                    <TableCell>{exam.durationMinutes != null ? `${exam.durationMinutes} min` : '—'}</TableCell>
+                    <TableCell>{exam.endTime ?? '—'}</TableCell>
                     <TableCell>
                       <Chip label={exam.status} color={statusColor(exam.status)} size="small" />
                     </TableCell>

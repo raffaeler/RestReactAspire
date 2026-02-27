@@ -158,7 +158,7 @@ public class DoctorEndpointTests : IClassFixture<TestWebApplicationFactory>
     {
         var patient = await CreatePatientAsync();
         var doctor = await CreateDoctorAsync();
-        var examReq = new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);
+        var examReq = new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 6, 15), new TimeOnly(9, 0), 30, "Scheduled", null, null);
         var examResp = await _client.PostAsJsonAsync("/api/exams", examReq);
         var exam = await examResp.Content.ReadFromJsonAsync<ExamResponse>();
         Assert.NotNull(exam);
@@ -180,7 +180,7 @@ public class DoctorEndpointTests : IClassFixture<TestWebApplicationFactory>
         var doctor1 = await CreateDoctorAsync();
         var doctor2 = await CreateDoctorAsync();
 
-        var examReq = new CreateExamRequest(patient.Id, doctor1.Id, "X-Ray", new DateOnly(2025, 7, 1), "Scheduled", null, null);
+        var examReq = new CreateExamRequest(patient.Id, doctor1.Id, "X-Ray", new DateOnly(2025, 7, 1), new TimeOnly(10, 0), 15, "Scheduled", null, null);
         var examResp = await _client.PostAsJsonAsync("/api/exams", examReq);
         var exam = await examResp.Content.ReadFromJsonAsync<ExamResponse>();
         Assert.NotNull(exam);
@@ -200,7 +200,7 @@ public class DoctorEndpointTests : IClassFixture<TestWebApplicationFactory>
         var patient = await CreatePatientAsync();
         var doctor = await CreateDoctorAsync();
 
-        var examReq = new CreateExamRequest(patient.Id, doctor.Id, "MRI", new DateOnly(2025, 8, 1), "Scheduled", null, null);
+        var examReq = new CreateExamRequest(patient.Id, doctor.Id, "MRI", new DateOnly(2025, 8, 1), new TimeOnly(14, 0), 60, "Scheduled", null, null);
         var examResp = await _client.PostAsJsonAsync("/api/exams", examReq);
         var exam = await examResp.Content.ReadFromJsonAsync<ExamResponse>();
         Assert.NotNull(exam);
@@ -226,7 +226,7 @@ public class DoctorEndpointTests : IClassFixture<TestWebApplicationFactory>
     public async Task AssignDoctor_ReturnsNotFound_WhenDoctorMissing()
     {
         var patient = await CreatePatientAsync();
-        var examReq = new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);
+        var examReq = new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 6, 15), new TimeOnly(9, 0), 30, "Scheduled", null, null);
         var examResp = await _client.PostAsJsonAsync("/api/exams", examReq);
         var exam = await examResp.Content.ReadFromJsonAsync<ExamResponse>();
         Assert.NotNull(exam);
@@ -243,11 +243,11 @@ public class DoctorEndpointTests : IClassFixture<TestWebApplicationFactory>
         var doctor2 = await CreateDoctorAsync();
 
         await _client.PostAsJsonAsync("/api/exams",
-            new CreateExamRequest(patient.Id, doctor1.Id, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+            new CreateExamRequest(patient.Id, doctor1.Id, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
         await _client.PostAsJsonAsync("/api/exams",
-            new CreateExamRequest(patient.Id, doctor1.Id, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+            new CreateExamRequest(patient.Id, doctor1.Id, "X-Ray", new DateOnly(2025, 6, 2), new TimeOnly(10, 0), 15, "Scheduled", null, null));
         await _client.PostAsJsonAsync("/api/exams",
-            new CreateExamRequest(patient.Id, doctor2.Id, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+            new CreateExamRequest(patient.Id, doctor2.Id, "MRI", new DateOnly(2025, 6, 3), new TimeOnly(14, 0), 60, "Scheduled", null, null));
 
         var response = await _client.GetAsync($"/api/doctors/{doctor1.Id}/exams");
         response.EnsureSuccessStatusCode();

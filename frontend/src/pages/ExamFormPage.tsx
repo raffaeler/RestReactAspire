@@ -24,6 +24,8 @@ export default function ExamFormPage() {
     doctorId: null,
     type: '',
     scheduledDate: '',
+    scheduledTime: null,
+    durationMinutes: null,
     status: 'Scheduled',
     results: null,
     notes: null,
@@ -76,6 +78,8 @@ export default function ExamFormPage() {
           doctorId: data.doctorId,
           type: data.type,
           scheduledDate: data.scheduledDate,
+          scheduledTime: data.scheduledTime,
+          durationMinutes: data.durationMinutes,
           status: data.status,
           results: data.results,
           notes: data.notes,
@@ -95,8 +99,10 @@ export default function ExamFormPage() {
     const value = e.target.value;
     if (field === 'results' || field === 'notes') {
       setFormData(prev => ({ ...prev, [field]: value || null }));
-    } else if (field === 'doctorId') {
+    } else if (field === 'doctorId' || field === 'scheduledTime') {
       setFormData(prev => ({ ...prev, [field]: value || null }));
+    } else if (field === 'durationMinutes') {
+      setFormData(prev => ({ ...prev, [field]: value ? parseInt(value, 10) : null }));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
     }
@@ -115,6 +121,8 @@ export default function ExamFormPage() {
           doctorId: formData.doctorId,
           type: formData.type,
           scheduledDate: formData.scheduledDate,
+          scheduledTime: formData.scheduledTime,
+          durationMinutes: formData.durationMinutes,
           status: formData.status,
           results: formData.results,
           notes: formData.notes,
@@ -197,6 +205,21 @@ export default function ExamFormPage() {
             onChange={handleChange('scheduledDate')}
             required
             slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <TextField
+            label="Scheduled Time"
+            type="time"
+            value={formData.scheduledTime ?? ''}
+            onChange={handleChange('scheduledTime')}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <TextField
+            label="Duration (minutes)"
+            type="number"
+            value={formData.durationMinutes ?? ''}
+            onChange={handleChange('durationMinutes')}
+            slotProps={{ input: { inputProps: { min: 1 } } }}
+            placeholder="e.g., 30"
           />
           <TextField
             label="Status"

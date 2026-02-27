@@ -19,7 +19,7 @@ public class ExamStoreTests : IDisposable
     public void Dispose() => _db.Dispose();
 
     private static CreateExamRequest MakeRequest(Guid patientId) =>
-        new(patientId, null, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);
+        new(patientId, null, "Blood Test", new DateOnly(2025, 6, 15), new TimeOnly(9, 0), 30, "Scheduled", null, null);
 
     [Fact]
     public void GetAll_ReturnsEmpty_WhenNoExams()
@@ -39,6 +39,9 @@ public class ExamStoreTests : IDisposable
         Assert.Equal(patientId, exam.PatientId);
         Assert.Equal("Blood Test", exam.Type);
         Assert.Equal(new DateOnly(2025, 6, 15), exam.ScheduledDate);
+        Assert.Equal(new TimeOnly(9, 0), exam.ScheduledTime);
+        Assert.Equal(30, exam.DurationMinutes);
+        Assert.Equal(new TimeOnly(9, 30), exam.EndTime);
         Assert.Equal("Scheduled", exam.Status);
         Assert.Null(exam.Results);
         Assert.Null(exam.Notes);
@@ -68,9 +71,9 @@ public class ExamStoreTests : IDisposable
     {
         var patient1 = Guid.NewGuid();
         var patient2 = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patient1, null, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patient2, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "X-Ray", new DateOnly(2025, 6, 2), new TimeOnly(10, 0), 15, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient2, null, "MRI", new DateOnly(2025, 6, 3), new TimeOnly(14, 0), 60, "Scheduled", null, null));
 
         var result = _store.GetByPatientId(patient1);
 
@@ -83,7 +86,7 @@ public class ExamStoreTests : IDisposable
     {
         var exam = _store.Add(MakeRequest(Guid.NewGuid()));
 
-        var updateRequest = new UpdateExamRequest(null, "MRI", new DateOnly(2025, 7, 1), "Completed", "Normal", "Follow up in 6 months");
+        var updateRequest = new UpdateExamRequest(null, "MRI", new DateOnly(2025, 7, 1), new TimeOnly(11, 0), 45, "Completed", "Normal", "Follow up in 6 months");
         var updated = _store.Update(exam.Id, updateRequest);
 
         Assert.NotNull(updated);
@@ -98,7 +101,7 @@ public class ExamStoreTests : IDisposable
     [Fact]
     public void Update_ReturnsNull_WhenNotExists()
     {
-        var request = new UpdateExamRequest(null, "MRI", new DateOnly(2025, 7, 1), "Completed", null, null);
+        var request = new UpdateExamRequest(null, "MRI", new DateOnly(2025, 7, 1), new TimeOnly(11, 0), 45, "Completed", null, null);
         var result = _store.Update(Guid.NewGuid(), request);
         Assert.Null(result);
     }
@@ -122,9 +125,9 @@ public class ExamStoreTests : IDisposable
     public void GetAll_ReturnsAllExams_AfterMultipleAdds()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), "Completed", "Clear", null));
-        _store.Add(new CreateExamRequest(Guid.NewGuid(), null, "MRI", new DateOnly(2025, 6, 3), "Cancelled", null, "Patient rescheduled"));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), new TimeOnly(10, 0), 15, "Completed", "Clear", null));
+        _store.Add(new CreateExamRequest(Guid.NewGuid(), null, "MRI", new DateOnly(2025, 6, 3), new TimeOnly(14, 0), 60, "Cancelled", null, "Patient rescheduled"));
 
         var all = _store.GetAll();
         Assert.Equal(3, all.Count);
@@ -134,9 +137,9 @@ public class ExamStoreTests : IDisposable
     public void SearchPaged_FiltersByType()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), "Completed", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), new TimeOnly(10, 0), 15, "Completed", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), new TimeOnly(14, 0), 60, "Scheduled", null, null));
 
         var (items, totalCount) = _store.SearchPaged("Blood", 1, 10);
         Assert.Equal(1, totalCount);
@@ -148,9 +151,9 @@ public class ExamStoreTests : IDisposable
     public void SearchPaged_FiltersByStatus()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), "Completed", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), new TimeOnly(10, 0), 15, "Completed", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), new TimeOnly(14, 0), 60, "Scheduled", null, null));
 
         var (items, totalCount) = _store.SearchPaged("Scheduled", 1, 10);
         Assert.Equal(2, totalCount);
@@ -161,8 +164,8 @@ public class ExamStoreTests : IDisposable
     public void SearchPaged_FiltersByDate()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 7, 15), "Completed", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 7, 15), new TimeOnly(10, 0), 15, "Completed", null, null));
 
         var (items, totalCount) = _store.SearchPaged("2025-07", 1, 10);
         Assert.Equal(1, totalCount);
@@ -174,7 +177,7 @@ public class ExamStoreTests : IDisposable
     public void SearchPaged_IsCaseInsensitive()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
 
         var (items, totalCount) = _store.SearchPaged("blood", 1, 10);
         Assert.Equal(1, totalCount);
@@ -186,9 +189,9 @@ public class ExamStoreTests : IDisposable
     {
         var patient1 = Guid.NewGuid();
         var patient2 = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patient1, null, "MRI", new DateOnly(2025, 6, 2), "Completed", null, null));
-        _store.Add(new CreateExamRequest(patient2, null, "Blood Test", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "MRI", new DateOnly(2025, 6, 2), new TimeOnly(14, 0), 60, "Completed", null, null));
+        _store.Add(new CreateExamRequest(patient2, null, "Blood Test", new DateOnly(2025, 6, 3), new TimeOnly(9, 0), 20, "Scheduled", null, null));
 
         var (items, totalCount) = _store.SearchByPatientIdPaged(patient1, "Blood", 1, 10);
         Assert.Equal(1, totalCount);
@@ -202,9 +205,9 @@ public class ExamStoreTests : IDisposable
         var patientId = Guid.NewGuid();
         var doctor1 = Guid.NewGuid();
         var doctor2 = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, doctor1, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, doctor1, "MRI", new DateOnly(2025, 6, 2), "Completed", null, null));
-        _store.Add(new CreateExamRequest(patientId, doctor2, "Blood Test", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, doctor1, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, doctor1, "MRI", new DateOnly(2025, 6, 2), new TimeOnly(14, 0), 60, "Completed", null, null));
+        _store.Add(new CreateExamRequest(patientId, doctor2, "Blood Test", new DateOnly(2025, 6, 3), new TimeOnly(9, 0), 20, "Scheduled", null, null));
 
         var (items, totalCount) = _store.SearchByDoctorIdPaged(doctor1, "MRI", 1, 10);
         Assert.Equal(1, totalCount);
@@ -216,9 +219,9 @@ public class ExamStoreTests : IDisposable
     public void GetPaged_DefaultSort_OrdersByScheduledDateAscending()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 9, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 7, 15), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 9, 1), new TimeOnly(14, 0), 60, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 7, 15), new TimeOnly(10, 0), 15, "Scheduled", null, null));
 
         var (items, _) = _store.GetPaged(1, 10);
         Assert.Equal(new DateOnly(2025, 6, 1), items[0].ScheduledDate);
@@ -230,8 +233,8 @@ public class ExamStoreTests : IDisposable
     public void GetPaged_SortByScheduledDate_Descending()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 9, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 9, 1), new TimeOnly(14, 0), 60, "Scheduled", null, null));
 
         var (items, _) = _store.GetPaged(1, 10, "scheduledDate", "desc");
         Assert.Equal(new DateOnly(2025, 9, 1), items[0].ScheduledDate);
@@ -242,9 +245,9 @@ public class ExamStoreTests : IDisposable
     public void GetPaged_SortByType_Ascending()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 2), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 1), new TimeOnly(10, 0), 15, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 2), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), new TimeOnly(14, 0), 60, "Scheduled", null, null));
 
         var (items, _) = _store.GetPaged(1, 10, "type", "asc");
         Assert.Equal("Blood Test", items[0].Type);
@@ -256,9 +259,9 @@ public class ExamStoreTests : IDisposable
     public void GetByPatientIdPaged_SortByType_Descending()
     {
         var patient1 = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patient1, null, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(Guid.NewGuid(), null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "X-Ray", new DateOnly(2025, 6, 2), new TimeOnly(10, 0), 15, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(Guid.NewGuid(), null, "MRI", new DateOnly(2025, 6, 3), new TimeOnly(14, 0), 60, "Scheduled", null, null));
 
         var (items, totalCount) = _store.GetByPatientIdPaged(patient1, 1, 10, "type", "desc");
         Assert.Equal(2, totalCount);
@@ -270,9 +273,9 @@ public class ExamStoreTests : IDisposable
     public void SearchPaged_WithSort_ReturnsFilteredAndSorted()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 9, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "Blood Panel", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 7, 1), "Completed", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 9, 1), new TimeOnly(8, 0), 20, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Panel", new DateOnly(2025, 6, 1), new TimeOnly(9, 0), 25, "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 7, 1), new TimeOnly(14, 0), 60, "Completed", null, null));
 
         var (items, totalCount) = _store.SearchPaged("Blood", 1, 10, "scheduledDate", "desc");
         Assert.Equal(2, totalCount);

@@ -117,6 +117,8 @@ public class ExamStore
             DoctorId = request.DoctorId,
             Type = request.Type,
             ScheduledDate = request.ScheduledDate,
+            ScheduledTime = request.ScheduledTime,
+            DurationMinutes = request.DurationMinutes,
             Status = request.Status,
             Results = request.Results,
             Notes = request.Notes
@@ -138,6 +140,8 @@ public class ExamStore
             DoctorId = request.DoctorId,
             Type = request.Type,
             ScheduledDate = request.ScheduledDate,
+            ScheduledTime = request.ScheduledTime,
+            DurationMinutes = request.DurationMinutes,
             Status = request.Status,
             Results = request.Results,
             Notes = request.Notes
@@ -159,6 +163,8 @@ public class ExamStore
             DoctorId = doctorId,
             Type = existing.Type,
             ScheduledDate = existing.ScheduledDate,
+            ScheduledTime = existing.ScheduledTime,
+            DurationMinutes = existing.DurationMinutes,
             Status = existing.Status,
             Results = existing.Results,
             Notes = existing.Notes
