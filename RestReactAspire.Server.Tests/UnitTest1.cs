@@ -167,4 +167,52 @@ public class PatientStoreTests : IDisposable
         var (page2, _) = _store.SearchPaged("Alice", 2, 10);
         Assert.Equal(5, page2.Count);
     }
+
+    [Fact]
+    public void GetPaged_DefaultSort_OrdersByLastNameAscending()
+    {
+        _store.Add(new CreatePatientRequest("Charlie", "Zebra", new DateOnly(1990, 1, 1), "c@example.com", "555-0001"));
+        _store.Add(new CreatePatientRequest("Alice", "Alpha", new DateOnly(1991, 2, 2), "a@example.com", "555-0002"));
+        _store.Add(new CreatePatientRequest("Bob", "Middle", new DateOnly(1992, 3, 3), "b@example.com", "555-0003"));
+
+        var (items, _) = _store.GetPaged(1, 10);
+        Assert.Equal("Alpha", items[0].LastName);
+        Assert.Equal("Middle", items[1].LastName);
+        Assert.Equal("Zebra", items[2].LastName);
+    }
+
+    [Fact]
+    public void GetPaged_SortByLastName_Descending()
+    {
+        _store.Add(new CreatePatientRequest("Alice", "Alpha", new DateOnly(1990, 1, 1), "a@example.com", "555-0001"));
+        _store.Add(new CreatePatientRequest("Bob", "Zebra", new DateOnly(1991, 2, 2), "b@example.com", "555-0002"));
+
+        var (items, _) = _store.GetPaged(1, 10, "lastName", "desc");
+        Assert.Equal("Zebra", items[0].LastName);
+        Assert.Equal("Alpha", items[1].LastName);
+    }
+
+    [Fact]
+    public void GetPaged_SortByFirstName_Ascending()
+    {
+        _store.Add(new CreatePatientRequest("Charlie", "Same", new DateOnly(1990, 1, 1), "c@example.com", "555-0001"));
+        _store.Add(new CreatePatientRequest("Alice", "Same", new DateOnly(1991, 2, 2), "a@example.com", "555-0002"));
+
+        var (items, _) = _store.GetPaged(1, 10, "firstName", "asc");
+        Assert.Equal("Alice", items[0].FirstName);
+        Assert.Equal("Charlie", items[1].FirstName);
+    }
+
+    [Fact]
+    public void SearchPaged_WithSort_ReturnsFilteredAndSorted()
+    {
+        _store.Add(new CreatePatientRequest("Alice", "Smith", new DateOnly(1990, 1, 1), "alice@example.com", "555-0001"));
+        _store.Add(new CreatePatientRequest("Charlie", "Smith", new DateOnly(1992, 3, 3), "charlie@example.com", "555-0003"));
+        _store.Add(new CreatePatientRequest("Bob", "Jones", new DateOnly(1991, 2, 2), "bob@example.com", "555-0002"));
+
+        var (items, totalCount) = _store.SearchPaged("Smith", 1, 10, "firstName", "desc");
+        Assert.Equal(2, totalCount);
+        Assert.Equal("Charlie", items[0].FirstName);
+        Assert.Equal("Alice", items[1].FirstName);
+    }
 }

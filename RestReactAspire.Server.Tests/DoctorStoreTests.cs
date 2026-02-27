@@ -155,4 +155,43 @@ public class DoctorStoreTests : IDisposable
         Assert.Equal(0, totalCount);
         Assert.Empty(items);
     }
+
+    [Fact]
+    public void GetPaged_DefaultSort_OrdersBySpecialtyThenLastName()
+    {
+        _store.Add(new CreateDoctorRequest("John", "Zebra", "Cardiology", "john@hospital.com", "555-0001"));
+        _store.Add(new CreateDoctorRequest("Jane", "Alpha", "Neurology", "jane@hospital.com", "555-0002"));
+        _store.Add(new CreateDoctorRequest("Bob", "Alpha", "Cardiology", "bob@hospital.com", "555-0003"));
+
+        var (items, _) = _store.GetPaged(1, 10);
+        Assert.Equal("Cardiology", items[0].Specialty);
+        Assert.Equal("Alpha", items[0].LastName);
+        Assert.Equal("Cardiology", items[1].Specialty);
+        Assert.Equal("Zebra", items[1].LastName);
+        Assert.Equal("Neurology", items[2].Specialty);
+    }
+
+    [Fact]
+    public void GetPaged_SortByLastName_Descending()
+    {
+        _store.Add(new CreateDoctorRequest("John", "Alpha", "Cardiology", "john@hospital.com", "555-0001"));
+        _store.Add(new CreateDoctorRequest("Jane", "Zebra", "Neurology", "jane@hospital.com", "555-0002"));
+
+        var (items, _) = _store.GetPaged(1, 10, "lastName", "desc");
+        Assert.Equal("Zebra", items[0].LastName);
+        Assert.Equal("Alpha", items[1].LastName);
+    }
+
+    [Fact]
+    public void SearchPaged_WithSort_ReturnsFilteredAndSorted()
+    {
+        _store.Add(new CreateDoctorRequest("John", "Smith", "Cardiology", "john@hospital.com", "555-0001"));
+        _store.Add(new CreateDoctorRequest("Bob", "Jones", "Cardiology", "bob@hospital.com", "555-0003"));
+        _store.Add(new CreateDoctorRequest("Jane", "Doe", "Neurology", "jane@hospital.com", "555-0002"));
+
+        var (items, totalCount) = _store.SearchPaged("Cardiology", 1, 10, "lastName", "desc");
+        Assert.Equal(2, totalCount);
+        Assert.Equal("Smith", items[0].LastName);
+        Assert.Equal("Jones", items[1].LastName);
+    }
 }

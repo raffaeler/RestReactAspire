@@ -14,14 +14,15 @@ public class DoctorStore
 
     public IReadOnlyList<Doctor> GetAll() => [.. _doctors.FindAll()];
 
-    public (IReadOnlyList<Doctor> Items, int TotalCount) GetPaged(int page, int pageSize)
+    public (IReadOnlyList<Doctor> Items, int TotalCount) GetPaged(int page, int pageSize, string sortBy = "specialty", string sortDirection = "asc")
     {
         var totalCount = _doctors.Count();
-        var items = _doctors.FindAll().Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = ApplySort(_doctors.FindAll(), sortBy, sortDirection)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);
     }
 
-    public (IReadOnlyList<Doctor> Items, int TotalCount) SearchPaged(string search, int page, int pageSize)
+    public (IReadOnlyList<Doctor> Items, int TotalCount) SearchPaged(string search, int page, int pageSize, string sortBy = "specialty", string sortDirection = "asc")
     {
         var lowerSearch = search.ToLowerInvariant();
         var all = _doctors.FindAll()
@@ -32,8 +33,24 @@ public class DoctorStore
                      || d.Phone.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var totalCount = all.Count;
-        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = ApplySort(all, sortBy, sortDirection)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);
+    }
+
+    private static IEnumerable<Doctor> ApplySort(IEnumerable<Doctor> doctors, string sortBy, string sortDirection)
+    {
+        var descending = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase);
+        return sortBy.ToLowerInvariant() switch
+        {
+            "firstname" => descending ? doctors.OrderByDescending(d => d.FirstName) : doctors.OrderBy(d => d.FirstName),
+            "lastname" => descending ? doctors.OrderByDescending(d => d.LastName) : doctors.OrderBy(d => d.LastName),
+            "email" => descending ? doctors.OrderByDescending(d => d.Email) : doctors.OrderBy(d => d.Email),
+            "phone" => descending ? doctors.OrderByDescending(d => d.Phone) : doctors.OrderBy(d => d.Phone),
+            _ => descending
+                ? doctors.OrderByDescending(d => d.Specialty).ThenByDescending(d => d.LastName)
+                : doctors.OrderBy(d => d.Specialty).ThenBy(d => d.LastName),
+        };
     }
 
     public Doctor? GetById(Guid id) => _doctors.FindById(id);

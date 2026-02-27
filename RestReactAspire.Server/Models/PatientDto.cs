@@ -26,6 +26,7 @@ public record PatientResponse(
 public record PatientListResponse(
     IReadOnlyList<PatientResponse> Items,
     PaginationInfo Pagination,
+    SortInfo Sort,
     IReadOnlyList<Link> Links);
 
 public record ApiRootResponse(IReadOnlyList<Link> Links);

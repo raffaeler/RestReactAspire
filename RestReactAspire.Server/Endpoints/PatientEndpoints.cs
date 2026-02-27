@@ -17,15 +17,15 @@ public static class PatientEndpoints
         return group;
     }
 
-    private static IResult GetAll(PatientStore store, ILogger<PatientStore> logger, int page = 1, int pageSize = 10, string? search = null)
+    private static IResult GetAll(PatientStore store, ILogger<PatientStore> logger, int page = 1, int pageSize = 10, string? search = null, string sortBy = "lastName", string sortDirection = "asc")
     {
         using var activity = PatientTelemetry.ActivitySource.StartActivity("GetAllPatients");
 
-        logger.LogInformation("Retrieving patients page {Page} with size {PageSize}, search {Search}", page, pageSize, search);
+        logger.LogInformation("Retrieving patients page {Page} with size {PageSize}, search {Search}, sort {SortBy} {SortDirection}", page, pageSize, search, sortBy, sortDirection);
 
         var (patients, totalCount) = string.IsNullOrWhiteSpace(search)
-            ? store.GetPaged(page, pageSize)
-            : store.SearchPaged(search, page, pageSize);
+            ? store.GetPaged(page, pageSize, sortBy, sortDirection)
+            : store.SearchPaged(search, page, pageSize, sortBy, sortDirection);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         activity?.SetTag("patient.count", patients.Count);
         activity?.SetTag("patient.totalCount", totalCount);
@@ -33,9 +33,10 @@ public static class PatientEndpoints
 
         var items = patients.Select(ToPatientResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
-        var links = PaginationLinks.Build("/api/patients", page, pageSize, totalPages, search,
+        var sort = new SortInfo(sortBy, sortDirection);
+        var links = PaginationLinks.Build("/api/patients", page, pageSize, totalPages, search, sortBy, sortDirection,
             new Link("create", "/api/patients", "POST"));
-        var response = new PatientListResponse(items, pagination, links);
+        var response = new PatientListResponse(items, pagination, sort, links);
 
         return Results.Ok(response);
     }

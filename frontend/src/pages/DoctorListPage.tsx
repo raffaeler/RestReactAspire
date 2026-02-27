@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Alert, CircularProgress, Box, Chip,
-  TablePagination, TextField, InputAdornment,
+  TablePagination, TextField, InputAdornment, TableSortLabel,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import type { Doctor, DoctorList } from '../types/doctor';
 
+type SortDirection = 'asc' | 'desc';
+
 export default function DoctorListPage() {
   const navigate = useNavigate();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -24,6 +26,8 @@ export default function DoctorListPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('specialty');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const fetchDoctors = useCallback(async () => {
     setLoading(true);
@@ -31,7 +35,8 @@ export default function DoctorListPage() {
     try {
       const link = await apiClient.getLink('doctors');
       const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-      const data = await apiClient.get<DoctorList>(`${link.href}?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}`);
+      const sortParams = `&sortBy=${encodeURIComponent(sortBy)}&sortDirection=${encodeURIComponent(sortDirection)}`;
+      const data = await apiClient.get<DoctorList>(`${link.href}?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}${sortParams}`);
       setDoctors(data.items);
       setTotalCount(data.pagination.totalCount);
     } catch (err) {
@@ -39,7 +44,7 @@ export default function DoctorListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, search]);
+  }, [page, rowsPerPage, search, sortBy, sortDirection]);
 
   useEffect(() => { fetchDoctors(); }, [fetchDoctors]);
 
@@ -81,6 +86,16 @@ export default function DoctorListPage() {
     if (event.key === 'Enter') {
       handleSearch();
     }
+  };
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+    setPage(0);
   };
 
   if (loading) {
@@ -136,10 +151,42 @@ export default function DoctorListPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Specialty</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Phone</TableCell>
+                  <TableCell sortDirection={sortBy === 'lastName' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'lastName'}
+                      direction={sortBy === 'lastName' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('lastName')}
+                    >
+                      Name
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'specialty' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'specialty'}
+                      direction={sortBy === 'specialty' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('specialty')}
+                    >
+                      Specialty
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'email' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'email'}
+                      direction={sortBy === 'email' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('email')}
+                    >
+                      Email
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'phone' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'phone'}
+                      direction={sortBy === 'phone' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('phone')}
+                    >
+                      Phone
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>

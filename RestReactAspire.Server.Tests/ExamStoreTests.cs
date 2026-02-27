@@ -211,4 +211,72 @@ public class ExamStoreTests : IDisposable
         Assert.Single(items);
         Assert.Equal(doctor1, items[0].DoctorId);
     }
+
+    [Fact]
+    public void GetPaged_DefaultSort_OrdersByScheduledDateAscending()
+    {
+        var patientId = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 9, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 7, 15), "Scheduled", null, null));
+
+        var (items, _) = _store.GetPaged(1, 10);
+        Assert.Equal(new DateOnly(2025, 6, 1), items[0].ScheduledDate);
+        Assert.Equal(new DateOnly(2025, 7, 15), items[1].ScheduledDate);
+        Assert.Equal(new DateOnly(2025, 9, 1), items[2].ScheduledDate);
+    }
+
+    [Fact]
+    public void GetPaged_SortByScheduledDate_Descending()
+    {
+        var patientId = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 9, 1), "Scheduled", null, null));
+
+        var (items, _) = _store.GetPaged(1, 10, "scheduledDate", "desc");
+        Assert.Equal(new DateOnly(2025, 9, 1), items[0].ScheduledDate);
+        Assert.Equal(new DateOnly(2025, 6, 1), items[1].ScheduledDate);
+    }
+
+    [Fact]
+    public void GetPaged_SortByType_Ascending()
+    {
+        var patientId = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+
+        var (items, _) = _store.GetPaged(1, 10, "type", "asc");
+        Assert.Equal("Blood Test", items[0].Type);
+        Assert.Equal("MRI", items[1].Type);
+        Assert.Equal("X-Ray", items[2].Type);
+    }
+
+    [Fact]
+    public void GetByPatientIdPaged_SortByType_Descending()
+    {
+        var patient1 = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(Guid.NewGuid(), null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+
+        var (items, totalCount) = _store.GetByPatientIdPaged(patient1, 1, 10, "type", "desc");
+        Assert.Equal(2, totalCount);
+        Assert.Equal("X-Ray", items[0].Type);
+        Assert.Equal("Blood Test", items[1].Type);
+    }
+
+    [Fact]
+    public void SearchPaged_WithSort_ReturnsFilteredAndSorted()
+    {
+        var patientId = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 9, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Panel", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 7, 1), "Completed", null, null));
+
+        var (items, totalCount) = _store.SearchPaged("Blood", 1, 10, "scheduledDate", "desc");
+        Assert.Equal(2, totalCount);
+        Assert.Equal(new DateOnly(2025, 9, 1), items[0].ScheduledDate);
+        Assert.Equal(new DateOnly(2025, 6, 1), items[1].ScheduledDate);
+    }
 }

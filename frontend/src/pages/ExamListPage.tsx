@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Alert, CircularProgress, Box, Chip,
-  TablePagination, TextField, InputAdornment,
+  TablePagination, TextField, InputAdornment, TableSortLabel,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -14,6 +14,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import type { Exam, ExamList } from '../types/exam';
 import type { Patient } from '../types/patient';
+
+type SortDirection = 'asc' | 'desc';
 
 export default function ExamListPage() {
   const { patientId } = useParams<{ patientId: string }>();
@@ -27,13 +29,16 @@ export default function ExamListPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('scheduledDate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-      const paginationParams = `?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}`;
+      const sortParams = `&sortBy=${encodeURIComponent(sortBy)}&sortDirection=${encodeURIComponent(sortDirection)}`;
+      const paginationParams = `?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}${sortParams}`;
       if (patientId) {
         const patientData = await apiClient.get<Patient>(`/api/patients/${patientId}`);
         setPatient(patientData);
@@ -53,7 +58,7 @@ export default function ExamListPage() {
     } finally {
       setLoading(false);
     }
-  }, [patientId, page, rowsPerPage, search]);
+  }, [patientId, page, rowsPerPage, search, sortBy, sortDirection]);
 
   useEffect(() => { fetchExams(); }, [fetchExams]);
 
@@ -95,6 +100,16 @@ export default function ExamListPage() {
     if (event.key === 'Enter') {
       handleSearch();
     }
+  };
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+    setPage(0);
   };
 
   const statusColor = (status: string): 'default' | 'primary' | 'success' | 'error' => {
@@ -172,10 +187,42 @@ export default function ExamListPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Scheduled Date</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Results</TableCell>
+                  <TableCell sortDirection={sortBy === 'type' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'type'}
+                      direction={sortBy === 'type' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('type')}
+                    >
+                      Type
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'scheduledDate' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'scheduledDate'}
+                      direction={sortBy === 'scheduledDate' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('scheduledDate')}
+                    >
+                      Scheduled Date
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'status' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'status'}
+                      direction={sortBy === 'status' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('status')}
+                    >
+                      Status
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'results' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'results'}
+                      direction={sortBy === 'results' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('results')}
+                    >
+                      Results
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>

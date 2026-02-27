@@ -11,6 +11,11 @@ export interface PaginationInfo {
   totalPages: number;
 }
 
+export interface SortInfo {
+  sortBy: string;
+  sortDirection: 'asc' | 'desc';
+}
+
 export interface ApiRoot {
   links: Link[];
 }

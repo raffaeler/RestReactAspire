@@ -14,14 +14,15 @@ public class ExamStore
 
     public IReadOnlyList<Exam> GetAll() => [.. _exams.FindAll()];
 
-    public (IReadOnlyList<Exam> Items, int TotalCount) GetPaged(int page, int pageSize)
+    public (IReadOnlyList<Exam> Items, int TotalCount) GetPaged(int page, int pageSize, string sortBy = "scheduledDate", string sortDirection = "asc")
     {
         var totalCount = _exams.Count();
-        var items = _exams.FindAll().Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = ApplySort(_exams.FindAll(), sortBy, sortDirection)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);
     }
 
-    public (IReadOnlyList<Exam> Items, int TotalCount) SearchPaged(string search, int page, int pageSize)
+    public (IReadOnlyList<Exam> Items, int TotalCount) SearchPaged(string search, int page, int pageSize, string sortBy = "scheduledDate", string sortDirection = "asc")
     {
         var lowerSearch = search.ToLowerInvariant();
         var all = _exams.FindAll()
@@ -32,22 +33,24 @@ public class ExamStore
                      || e.ScheduledDate.ToString("yyyy-MM-dd").Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var totalCount = all.Count;
-        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = ApplySort(all, sortBy, sortDirection)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);
     }
 
     public IReadOnlyList<Exam> GetByPatientId(Guid patientId) =>
         [.. _exams.Find(e => e.PatientId == patientId)];
 
-    public (IReadOnlyList<Exam> Items, int TotalCount) GetByPatientIdPaged(Guid patientId, int page, int pageSize)
+    public (IReadOnlyList<Exam> Items, int TotalCount) GetByPatientIdPaged(Guid patientId, int page, int pageSize, string sortBy = "scheduledDate", string sortDirection = "asc")
     {
         var all = _exams.Find(e => e.PatientId == patientId).ToList();
         var totalCount = all.Count;
-        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = ApplySort(all, sortBy, sortDirection)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);
     }
 
-    public (IReadOnlyList<Exam> Items, int TotalCount) SearchByPatientIdPaged(Guid patientId, string search, int page, int pageSize)
+    public (IReadOnlyList<Exam> Items, int TotalCount) SearchByPatientIdPaged(Guid patientId, string search, int page, int pageSize, string sortBy = "scheduledDate", string sortDirection = "asc")
     {
         var lowerSearch = search.ToLowerInvariant();
         var all = _exams.Find(e => e.PatientId == patientId).ToList()
@@ -58,22 +61,24 @@ public class ExamStore
                      || e.ScheduledDate.ToString("yyyy-MM-dd").Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var totalCount = all.Count;
-        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = ApplySort(all, sortBy, sortDirection)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);
     }
 
     public IReadOnlyList<Exam> GetByDoctorId(Guid doctorId) =>
         [.. _exams.Find(e => e.DoctorId == doctorId)];
 
-    public (IReadOnlyList<Exam> Items, int TotalCount) GetByDoctorIdPaged(Guid doctorId, int page, int pageSize)
+    public (IReadOnlyList<Exam> Items, int TotalCount) GetByDoctorIdPaged(Guid doctorId, int page, int pageSize, string sortBy = "scheduledDate", string sortDirection = "asc")
     {
         var all = _exams.Find(e => e.DoctorId == doctorId).ToList();
         var totalCount = all.Count;
-        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = ApplySort(all, sortBy, sortDirection)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);
     }
 
-    public (IReadOnlyList<Exam> Items, int TotalCount) SearchByDoctorIdPaged(Guid doctorId, string search, int page, int pageSize)
+    public (IReadOnlyList<Exam> Items, int TotalCount) SearchByDoctorIdPaged(Guid doctorId, string search, int page, int pageSize, string sortBy = "scheduledDate", string sortDirection = "asc")
     {
         var lowerSearch = search.ToLowerInvariant();
         var all = _exams.Find(e => e.DoctorId == doctorId).ToList()
@@ -84,8 +89,21 @@ public class ExamStore
                      || e.ScheduledDate.ToString("yyyy-MM-dd").Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var totalCount = all.Count;
-        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = ApplySort(all, sortBy, sortDirection)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);
+    }
+
+    private static IEnumerable<Exam> ApplySort(IEnumerable<Exam> exams, string sortBy, string sortDirection)
+    {
+        var descending = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase);
+        return sortBy.ToLowerInvariant() switch
+        {
+            "type" => descending ? exams.OrderByDescending(e => e.Type) : exams.OrderBy(e => e.Type),
+            "status" => descending ? exams.OrderByDescending(e => e.Status) : exams.OrderBy(e => e.Status),
+            "results" => descending ? exams.OrderByDescending(e => e.Results) : exams.OrderBy(e => e.Results),
+            _ => descending ? exams.OrderByDescending(e => e.ScheduledDate) : exams.OrderBy(e => e.ScheduledDate),
+        };
     }
 
     public Exam? GetById(Guid id) => _exams.FindById(id);

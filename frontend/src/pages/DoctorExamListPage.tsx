@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Alert, CircularProgress, Box, Chip,
-  TablePagination, TextField, InputAdornment,
+  TablePagination, TextField, InputAdornment, TableSortLabel,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -12,6 +12,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import type { Exam, ExamList } from '../types/exam';
 import type { Doctor } from '../types/doctor';
+
+type SortDirection = 'asc' | 'desc';
 
 export default function DoctorExamListPage() {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -25,6 +27,8 @@ export default function DoctorExamListPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('scheduledDate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
@@ -35,7 +39,8 @@ export default function DoctorExamListPage() {
       const examsLink = apiClient.findLink(doctorData.links, 'exams');
       if (!examsLink) throw new Error('Exams link not found on doctor');
       const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-      const data = await apiClient.get<ExamList>(`${examsLink.href}?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}`);
+      const sortParams = `&sortBy=${encodeURIComponent(sortBy)}&sortDirection=${encodeURIComponent(sortDirection)}`;
+      const data = await apiClient.get<ExamList>(`${examsLink.href}?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}${sortParams}`);
       setExams(data.items);
       setTotalCount(data.pagination.totalCount);
     } catch (err) {
@@ -43,7 +48,7 @@ export default function DoctorExamListPage() {
     } finally {
       setLoading(false);
     }
-  }, [doctorId, page, rowsPerPage, search]);
+  }, [doctorId, page, rowsPerPage, search, sortBy, sortDirection]);
 
   useEffect(() => { fetchExams(); }, [fetchExams]);
 
@@ -71,6 +76,16 @@ export default function DoctorExamListPage() {
     if (event.key === 'Enter') {
       handleSearch();
     }
+  };
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+    setPage(0);
   };
 
   const statusColor = (status: string): 'default' | 'primary' | 'success' | 'error' => {
@@ -139,10 +154,42 @@ export default function DoctorExamListPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Scheduled Date</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Results</TableCell>
+                  <TableCell sortDirection={sortBy === 'type' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'type'}
+                      direction={sortBy === 'type' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('type')}
+                    >
+                      Type
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'scheduledDate' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'scheduledDate'}
+                      direction={sortBy === 'scheduledDate' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('scheduledDate')}
+                    >
+                      Scheduled Date
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'status' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'status'}
+                      direction={sortBy === 'status' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('status')}
+                    >
+                      Status
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sortDirection={sortBy === 'results' ? sortDirection : false}>
+                    <TableSortLabel
+                      active={sortBy === 'results'}
+                      direction={sortBy === 'results' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('results')}
+                    >
+                      Results
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>

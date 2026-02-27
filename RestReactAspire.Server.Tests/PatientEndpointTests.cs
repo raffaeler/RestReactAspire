@@ -169,4 +169,70 @@ public class PatientEndpointTests : IClassFixture<TestWebApplicationFactory>
         Assert.NotNull(list);
         Assert.All(list.Links.Where(l => l.Rel is "self" or "first" or "last" or "next"), l => Assert.Contains("search=PagSearch", l.Href));
     }
+
+    [Fact]
+    public async Task GetPatients_DefaultSort_ReturnsSortInfo()
+    {
+        var response = await _client.GetAsync("/api/patients");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<PatientListResponse>();
+        Assert.NotNull(list);
+        Assert.Equal("lastName", list.Sort.SortBy);
+        Assert.Equal("asc", list.Sort.SortDirection);
+    }
+
+    [Fact]
+    public async Task GetPatients_WithSortParams_ReturnsSortedResults()
+    {
+        await _client.PostAsJsonAsync("/api/patients", new CreatePatientRequest("SortAlpha", "Zebra", new DateOnly(1990, 1, 1), "sortalpha@example.com", "555-8001"));
+        await _client.PostAsJsonAsync("/api/patients", new CreatePatientRequest("SortBeta", "Alpha", new DateOnly(1991, 2, 2), "sortbeta@example.com", "555-8002"));
+
+        var response = await _client.GetAsync("/api/patients?sortBy=lastName&sortDirection=asc&search=Sort");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<PatientListResponse>();
+        Assert.NotNull(list);
+        Assert.Equal("lastName", list.Sort.SortBy);
+        Assert.Equal("asc", list.Sort.SortDirection);
+        Assert.True(list.Items.Count >= 2);
+        var sortItems = list.Items.Where(p => p.FirstName.StartsWith("Sort")).ToList();
+        Assert.Equal("Alpha", sortItems[0].LastName);
+        Assert.Equal("Zebra", sortItems[1].LastName);
+    }
+
+    [Fact]
+    public async Task GetPatients_WithSortDesc_ReturnsSortedDescending()
+    {
+        await _client.PostAsJsonAsync("/api/patients", new CreatePatientRequest("DescAlpha", "AAA", new DateOnly(1990, 1, 1), "descalpha@example.com", "555-8003"));
+        await _client.PostAsJsonAsync("/api/patients", new CreatePatientRequest("DescBeta", "ZZZ", new DateOnly(1991, 2, 2), "descbeta@example.com", "555-8004"));
+
+        var response = await _client.GetAsync("/api/patients?sortBy=lastName&sortDirection=desc&search=Desc");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<PatientListResponse>();
+        Assert.NotNull(list);
+        Assert.Equal("desc", list.Sort.SortDirection);
+        var sortItems = list.Items.Where(p => p.FirstName.StartsWith("Desc")).ToList();
+        Assert.Equal("ZZZ", sortItems[0].LastName);
+        Assert.Equal("AAA", sortItems[1].LastName);
+    }
+
+    [Fact]
+    public async Task GetPatients_PaginationLinksContainSortParams()
+    {
+        for (int i = 0; i < 15; i++)
+            await _client.PostAsJsonAsync("/api/patients", new CreatePatientRequest("SortPag", $"Last{i}", new DateOnly(1990, 1, 1), $"sortpag{i}@example.com", $"555-{i:D4}"));
+
+        var response = await _client.GetAsync("/api/patients?search=SortPag&pageSize=10&sortBy=email&sortDirection=desc");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<PatientListResponse>();
+        Assert.NotNull(list);
+        Assert.All(list.Links.Where(l => l.Rel is "self" or "first" or "last" or "next"), l =>
+        {
+            Assert.Contains("sortBy=email", l.Href);
+            Assert.Contains("sortDirection=desc", l.Href);
+        });
+    }
 }

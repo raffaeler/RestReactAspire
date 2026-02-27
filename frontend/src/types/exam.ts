@@ -1,4 +1,4 @@
-import type { Link, PaginationInfo } from './hateoas';
+import type { Link, PaginationInfo, SortInfo } from './hateoas';
 
 export interface Exam {
   id: string;
@@ -15,6 +15,7 @@ export interface Exam {
 export interface ExamList {
   items: Exam[];
   pagination: PaginationInfo;
+  sort: SortInfo;
   links: Link[];
 }
 

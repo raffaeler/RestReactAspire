@@ -25,15 +25,15 @@ public static class ExamEndpoints
         return group;
     }
 
-    private static IResult GetAll(ExamStore store, ILogger<ExamStore> logger, int page = 1, int pageSize = 10, string? search = null)
+    private static IResult GetAll(ExamStore store, ILogger<ExamStore> logger, int page = 1, int pageSize = 10, string? search = null, string sortBy = "scheduledDate", string sortDirection = "asc")
     {
         using var activity = ExamTelemetry.ActivitySource.StartActivity("GetAllExams");
 
-        logger.LogInformation("Retrieving exams page {Page} with size {PageSize}, search {Search}", page, pageSize, search);
+        logger.LogInformation("Retrieving exams page {Page} with size {PageSize}, search {Search}, sort {SortBy} {SortDirection}", page, pageSize, search, sortBy, sortDirection);
 
         var (exams, totalCount) = string.IsNullOrWhiteSpace(search)
-            ? store.GetPaged(page, pageSize)
-            : store.SearchPaged(search, page, pageSize);
+            ? store.GetPaged(page, pageSize, sortBy, sortDirection)
+            : store.SearchPaged(search, page, pageSize, sortBy, sortDirection);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         activity?.SetTag("exam.count", exams.Count);
         activity?.SetTag("exam.totalCount", totalCount);
@@ -41,14 +41,15 @@ public static class ExamEndpoints
 
         var items = exams.Select(ToExamResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
-        var links = PaginationLinks.Build("/api/exams", page, pageSize, totalPages, search,
+        var sort = new SortInfo(sortBy, sortDirection);
+        var links = PaginationLinks.Build("/api/exams", page, pageSize, totalPages, search, sortBy, sortDirection,
             new Link("create", "/api/exams", "POST"));
-        var response = new ExamListResponse(items, pagination, links);
+        var response = new ExamListResponse(items, pagination, sort, links);
 
         return Results.Ok(response);
     }
 
-    private static IResult GetByPatient(Guid patientId, ExamStore store, PatientStore patientStore, ILogger<ExamStore> logger, int page = 1, int pageSize = 10, string? search = null)
+    private static IResult GetByPatient(Guid patientId, ExamStore store, PatientStore patientStore, ILogger<ExamStore> logger, int page = 1, int pageSize = 10, string? search = null, string sortBy = "scheduledDate", string sortDirection = "asc")
     {
         using var activity = ExamTelemetry.ActivitySource.StartActivity("GetExamsByPatient");
         activity?.SetTag("patient.id", patientId.ToString());
@@ -60,11 +61,11 @@ public static class ExamEndpoints
             return Results.NotFound();
         }
 
-        logger.LogInformation("Retrieving exams for patient {PatientId} page {Page} with size {PageSize}, search {Search}", patientId, page, pageSize, search);
+        logger.LogInformation("Retrieving exams for patient {PatientId} page {Page} with size {PageSize}, search {Search}, sort {SortBy} {SortDirection}", patientId, page, pageSize, search, sortBy, sortDirection);
 
         var (exams, totalCount) = string.IsNullOrWhiteSpace(search)
-            ? store.GetByPatientIdPaged(patientId, page, pageSize)
-            : store.SearchByPatientIdPaged(patientId, search, page, pageSize);
+            ? store.GetByPatientIdPaged(patientId, page, pageSize, sortBy, sortDirection)
+            : store.SearchByPatientIdPaged(patientId, search, page, pageSize, sortBy, sortDirection);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         activity?.SetTag("exam.count", exams.Count);
         activity?.SetTag("exam.totalCount", totalCount);
@@ -72,11 +73,12 @@ public static class ExamEndpoints
 
         var items = exams.Select(ToExamResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
+        var sort = new SortInfo(sortBy, sortDirection);
         var basePath = $"/api/patients/{patientId}/exams";
-        var links = PaginationLinks.Build(basePath, page, pageSize, totalPages, search,
+        var links = PaginationLinks.Build(basePath, page, pageSize, totalPages, search, sortBy, sortDirection,
             new Link("create", "/api/exams", "POST"),
             new Link("patient", $"/api/patients/{patientId}", "GET"));
-        var response = new ExamListResponse(items, pagination, links);
+        var response = new ExamListResponse(items, pagination, sort, links);
 
         return Results.Ok(response);
     }
