@@ -40,6 +40,7 @@ api.MapGroup("exams").MapExamEndpoints();
 api.MapGroup("patients/{patientId:guid}/exams").MapPatientExamEndpoints();
 api.MapGroup("doctors").MapDoctorEndpoints();
 api.MapGroup("doctors/{doctorId:guid}/exams").MapDoctorExamEndpoints();
+api.MapGroup("admin").MapAdminEndpoints();
 
 app.MapDefaultEndpoints();
 

@@ -8,6 +8,10 @@ Step 1. Patient data management: Create, Read, Update, and Delete (CRUD) operati
 Step 2. Exams management: CRUD operations for medical exams, including scheduling and results.
 Step 3. Doctors management: CRUD operations for doctor records, including their specialties and schedules. They can be assigned to exams and eventually changed if needed.
 Step 4. Change the in-memory storage with LiteDB, to persist the data.
+Step 5. Add an admin page that allow to populate the db with sample data, and to reset the database. The sample data is composed by 20 patients, 10 doctors and 30 exams, with random but meaningful data that is correctly related (e.g., patients have medical history, exams are assigned to doctors and patients, etc.).
+Step 6. Modify all the lists on the front-end to paginate the results, to avoid loading all the data at once and to improve the performance of the application. The pagination should be implemented on the server-side, and the API should support query parameters for page number and page size. The front-end should display pagination controls to allow users to navigate through the pages of results.
+Step 7. On each page, implement a search functionality that allows users to filter the results based on specific criteria (e.g., search patients by name, search exams by date, etc.). The search should be implemented on the server-side, and the API should support query parameters for the search criteria. The front-end should display a search input and a button to trigger the search, and the results should be updated accordingly.
+Step 8. Add OpenTelemetry instrumentation to the API, including Traces (Activities), Metrics and Logs. The instrumentation should be designed to provide insights into the performance and behavior of the API, and to help identify and troubleshoot issues.
 
 ## Technology stack
 - Backend

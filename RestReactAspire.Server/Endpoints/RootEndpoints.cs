@@ -12,7 +12,10 @@ public static class RootEndpoints
                 new Link("self", "/api", "GET"),
                 new Link("patients", "/api/patients", "GET"),
                 new Link("exams", "/api/exams", "GET"),
-                new Link("doctors", "/api/doctors", "GET")
+                new Link("doctors", "/api/doctors", "GET"),
+                new Link("admin-stats", "/api/admin/stats", "GET"),
+                new Link("admin-seed", "/api/admin/seed", "POST"),
+                new Link("admin-reset", "/api/admin/reset", "POST")
             ]);
             return Results.Ok(response);
         })

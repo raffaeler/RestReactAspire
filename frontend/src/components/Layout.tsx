@@ -1,6 +1,7 @@
 import { AppBar, Toolbar, Typography, Container, Box, Button } from '@mui/material';
 import { Outlet, useNavigate } from 'react-router-dom';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -26,6 +27,9 @@ export default function Layout() {
           </Button>
           <Button color="inherit" onClick={() => navigate('/doctors')}>
             Doctors
+          </Button>
+          <Button color="inherit" onClick={() => navigate('/admin')} startIcon={<AdminPanelSettingsIcon />}>
+            Admin
           </Button>
         </Toolbar>
       </AppBar>
