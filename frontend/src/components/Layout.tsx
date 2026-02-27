@@ -21,6 +21,9 @@ export default function Layout() {
           <Button color="inherit" onClick={() => navigate('/patients')}>
             Patients
           </Button>
+          <Button color="inherit" onClick={() => navigate('/exams')}>
+            Exams
+          </Button>
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flex: 1 }}>

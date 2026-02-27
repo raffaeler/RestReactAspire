@@ -1,12 +1,12 @@
-This solution is designed to provide an examplar tutoria of the REST architectural style.
+This solution is designed to provide an examplar tutorial of the REST architectural style.
 The design must be HATEOS compliant, and the API must be designed to be easily navigable by clients.
 
 ## Scenario
 The scenario is a fictious day-hospital management system, where patients can be admitted, treated, and discharged. The system must allow for the management of patient records, including personal information, medical history, and treatment plans.
 APIs and UI must implement the following features:
-- Patient data management: Create, Read, Update, and Delete (CRUD) operations for patient records.
-- Exams management: CRUD operations for medical exams, including scheduling and results.
-- Doctors management: CRUD operations for doctor records, including their specialties and schedules.
+Step 1. Patient data management: Create, Read, Update, and Delete (CRUD) operations for patient records.
+Step 2. Exams management: CRUD operations for medical exams, including scheduling and results.
+Step 3. Doctors management: CRUD operations for doctor records, including their specialties and schedules.
 
 ## Technology stack
 - Backend
@@ -16,6 +16,8 @@ APIs and UI must implement the following features:
   - Test suite using xUnit
 - Frontend
   - React with TypeScript
+  - MUI components
+  - React Router to navigate between pages
   - Centralized client to consume the API, discovered according to the HATEOS principles.
 
 ## Technical Requirements

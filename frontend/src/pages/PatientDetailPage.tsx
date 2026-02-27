@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Typography, Paper, Box, Button, Alert, CircularProgress } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ScienceIcon from '@mui/icons-material/Science';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import type { Patient } from '../types/patient';
@@ -45,9 +46,14 @@ export default function PatientDetailPage() {
         <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/patients')}>
           Back to Patients
         </Button>
-        <Button variant="contained" startIcon={<EditIcon />} onClick={() => navigate(`/patients/${id}/edit`)}>
-          Edit
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="outlined" startIcon={<ScienceIcon />} onClick={() => navigate(`/patients/${id}/exams`)}>
+            Exams
+          </Button>
+          <Button variant="contained" startIcon={<EditIcon />} onClick={() => navigate(`/patients/${id}/edit`)}>
+            Edit
+          </Button>
+        </Box>
       </Box>
 
       <Paper sx={{ p: 3 }}>

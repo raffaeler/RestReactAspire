@@ -113,6 +113,7 @@ public static class PatientEndpoints
                 new Link("self", $"/api/patients/{patient.Id}", "GET"),
                 new Link("update", $"/api/patients/{patient.Id}", "PUT"),
                 new Link("delete", $"/api/patients/{patient.Id}", "DELETE"),
+                new Link("exams", $"/api/patients/{patient.Id}/exams", "GET"),
                 new Link("collection", "/api/patients", "GET")
             ]);
     }

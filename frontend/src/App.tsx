@@ -4,6 +4,9 @@ import Layout from './components/Layout';
 import PatientListPage from './pages/PatientListPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import PatientFormPage from './pages/PatientFormPage';
+import ExamListPage from './pages/ExamListPage';
+import ExamDetailPage from './pages/ExamDetailPage';
+import ExamFormPage from './pages/ExamFormPage';
 
 const theme = createTheme({
   palette: {
@@ -26,6 +29,12 @@ function App() {
             <Route path="patients/new" element={<PatientFormPage />} />
             <Route path="patients/:id" element={<PatientDetailPage />} />
             <Route path="patients/:id/edit" element={<PatientFormPage />} />
+            <Route path="patients/:patientId/exams" element={<ExamListPage />} />
+            <Route path="patients/:patientId/exams/new" element={<ExamFormPage />} />
+            <Route path="exams" element={<ExamListPage />} />
+            <Route path="exams/new" element={<ExamFormPage />} />
+            <Route path="exams/:id" element={<ExamDetailPage />} />
+            <Route path="exams/:id/edit" element={<ExamFormPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
