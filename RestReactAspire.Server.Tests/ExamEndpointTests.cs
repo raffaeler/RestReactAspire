@@ -198,4 +198,49 @@ public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
         Assert.NotNull(data);
         Assert.Contains(data.Links, l => l.Rel == "exams");
     }
+
+    [Fact]
+    public async Task GetExams_WithSearch_ReturnsFilteredResults()
+    {
+        var patient = await CreatePatientAsync();
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Echocardiogram", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Ultrasound", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+
+        var response = await _client.GetAsync("/api/exams?search=Echocardiogram");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<ExamListResponse>();
+        Assert.NotNull(list);
+        Assert.All(list.Items, e => Assert.Contains("Echocardiogram", e.Type));
+    }
+
+    [Fact]
+    public async Task GetExams_WithSearch_ByStatus()
+    {
+        var patient = await CreatePatientAsync();
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Blood Test", new DateOnly(2025, 9, 1), "Cancelled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "X-Ray", new DateOnly(2025, 9, 2), "Scheduled", null, null));
+
+        var response = await _client.GetAsync("/api/exams?search=Cancelled");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<ExamListResponse>();
+        Assert.NotNull(list);
+        Assert.Contains(list.Items, e => e.Status == "Cancelled");
+    }
+
+    [Fact]
+    public async Task GetPatientExams_WithSearch_ReturnsFilteredResults()
+    {
+        var patient = await CreatePatientAsync();
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "Colonoscopy", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        await _client.PostAsJsonAsync("/api/exams", new CreateExamRequest(patient.Id, null, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+
+        var response = await _client.GetAsync($"/api/patients/{patient.Id}/exams?search=Colonoscopy");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<ExamListResponse>();
+        Assert.NotNull(list);
+        Assert.All(list.Items, e => Assert.Contains("Colonoscopy", e.Type));
+    }
 }

@@ -21,6 +21,21 @@ public class DoctorStore
         return (items, totalCount);
     }
 
+    public (IReadOnlyList<Doctor> Items, int TotalCount) SearchPaged(string search, int page, int pageSize)
+    {
+        var lowerSearch = search.ToLowerInvariant();
+        var all = _doctors.FindAll()
+            .Where(d => d.FirstName.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || d.LastName.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || d.Specialty.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || d.Email.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || d.Phone.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var totalCount = all.Count;
+        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
+
     public Doctor? GetById(Guid id) => _doctors.FindById(id);
 
     public Doctor Add(CreateDoctorRequest request)

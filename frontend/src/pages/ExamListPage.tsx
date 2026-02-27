@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Alert, CircularProgress, Box, Chip,
-  TablePagination,
+  TablePagination, TextField, InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import type { Exam, ExamList } from '../types/exam';
@@ -23,12 +25,15 @@ export default function ExamListPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const paginationParams = `?page=${page + 1}&pageSize=${rowsPerPage}`;
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+      const paginationParams = `?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}`;
       if (patientId) {
         const patientData = await apiClient.get<Patient>(`/api/patients/${patientId}`);
         setPatient(patientData);
@@ -48,7 +53,7 @@ export default function ExamListPage() {
     } finally {
       setLoading(false);
     }
-  }, [patientId, page, rowsPerPage]);
+  }, [patientId, page, rowsPerPage, search]);
 
   useEffect(() => { fetchExams(); }, [fetchExams]);
 
@@ -73,6 +78,23 @@ export default function ExamListPage() {
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+  };
+
+  const handleSearch = () => {
+    setPage(0);
+    setSearch(searchInput);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setPage(0);
+    setSearch('');
+  };
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   const statusColor = (status: string): 'default' | 'primary' | 'success' | 'error' => {
@@ -115,6 +137,32 @@ export default function ExamListPage() {
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Search by type, status, date, results…"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ minWidth: 300 }}
+        />
+        <Button variant="contained" onClick={handleSearch}>Search</Button>
+        {search && (
+          <Button variant="outlined" startIcon={<ClearIcon />} onClick={handleClearSearch}>
+            Clear
+          </Button>
+        )}
+      </Box>
 
       {exams.length === 0 && totalCount === 0 ? (
         <Alert severity="info">No exams found. Add a new exam to get started.</Alert>

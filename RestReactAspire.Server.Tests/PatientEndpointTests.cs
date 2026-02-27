@@ -129,4 +129,44 @@ public class PatientEndpointTests : IClassFixture<TestWebApplicationFactory>
         var response = await _client.DeleteAsync($"/api/patients/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetPatients_WithSearch_ReturnsFilteredResults()
+    {
+        await _client.PostAsJsonAsync("/api/patients", new CreatePatientRequest("SearchAlpha", "One", new DateOnly(1990, 1, 1), "alpha@example.com", "555-0001"));
+        await _client.PostAsJsonAsync("/api/patients", new CreatePatientRequest("SearchBeta", "Two", new DateOnly(1991, 2, 2), "beta@example.com", "555-0002"));
+
+        var response = await _client.GetAsync("/api/patients?search=SearchAlpha");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<PatientListResponse>();
+        Assert.NotNull(list);
+        Assert.All(list.Items, p => Assert.Contains("SearchAlpha", p.FirstName));
+    }
+
+    [Fact]
+    public async Task GetPatients_WithSearch_ReturnsEmptyWhenNoMatch()
+    {
+        var response = await _client.GetAsync("/api/patients?search=ZZZNonExistent");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<PatientListResponse>();
+        Assert.NotNull(list);
+        Assert.Empty(list.Items);
+        Assert.Equal(0, list.Pagination.TotalCount);
+    }
+
+    [Fact]
+    public async Task GetPatients_WithSearch_PaginationLinksContainSearch()
+    {
+        for (int i = 0; i < 15; i++)
+            await _client.PostAsJsonAsync("/api/patients", new CreatePatientRequest("PagSearch", $"Last{i}", new DateOnly(1990, 1, 1), $"pag{i}@example.com", $"555-{i:D4}"));
+
+        var response = await _client.GetAsync("/api/patients?search=PagSearch&pageSize=10");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<PatientListResponse>();
+        Assert.NotNull(list);
+        Assert.All(list.Links.Where(l => l.Rel is "self" or "first" or "last" or "next"), l => Assert.Contains("search=PagSearch", l.Href));
+    }
 }

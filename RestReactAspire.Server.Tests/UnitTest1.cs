@@ -108,4 +108,63 @@ public class PatientStoreTests : IDisposable
         var all = _store.GetAll();
         Assert.Equal(3, all.Count);
     }
+
+    [Fact]
+    public void SearchPaged_FiltersByFirstName()
+    {
+        _store.Add(new CreatePatientRequest("Alice", "Smith", new DateOnly(1990, 1, 1), "alice@example.com", "555-0001"));
+        _store.Add(new CreatePatientRequest("Bob", "Jones", new DateOnly(1991, 2, 2), "bob@example.com", "555-0002"));
+        _store.Add(new CreatePatientRequest("Charlie", "Smith", new DateOnly(1992, 3, 3), "charlie@example.com", "555-0003"));
+
+        var (items, totalCount) = _store.SearchPaged("Alice", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+        Assert.Equal("Alice", items[0].FirstName);
+    }
+
+    [Fact]
+    public void SearchPaged_FiltersByLastName()
+    {
+        _store.Add(new CreatePatientRequest("Alice", "Smith", new DateOnly(1990, 1, 1), "alice@example.com", "555-0001"));
+        _store.Add(new CreatePatientRequest("Bob", "Jones", new DateOnly(1991, 2, 2), "bob@example.com", "555-0002"));
+        _store.Add(new CreatePatientRequest("Charlie", "Smith", new DateOnly(1992, 3, 3), "charlie@example.com", "555-0003"));
+
+        var (items, totalCount) = _store.SearchPaged("Smith", 1, 10);
+        Assert.Equal(2, totalCount);
+        Assert.Equal(2, items.Count);
+    }
+
+    [Fact]
+    public void SearchPaged_IsCaseInsensitive()
+    {
+        _store.Add(new CreatePatientRequest("Alice", "Smith", new DateOnly(1990, 1, 1), "alice@example.com", "555-0001"));
+
+        var (items, totalCount) = _store.SearchPaged("alice", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+    }
+
+    [Fact]
+    public void SearchPaged_ReturnsEmpty_WhenNoMatch()
+    {
+        _store.Add(new CreatePatientRequest("Alice", "Smith", new DateOnly(1990, 1, 1), "alice@example.com", "555-0001"));
+
+        var (items, totalCount) = _store.SearchPaged("zzz", 1, 10);
+        Assert.Equal(0, totalCount);
+        Assert.Empty(items);
+    }
+
+    [Fact]
+    public void SearchPaged_RespectsPagination()
+    {
+        for (int i = 0; i < 15; i++)
+            _store.Add(new CreatePatientRequest("Alice", $"Last{i}", new DateOnly(1990, 1, 1), $"alice{i}@example.com", $"555-{i:D4}"));
+
+        var (page1, totalCount) = _store.SearchPaged("Alice", 1, 10);
+        Assert.Equal(15, totalCount);
+        Assert.Equal(10, page1.Count);
+
+        var (page2, _) = _store.SearchPaged("Alice", 2, 10);
+        Assert.Equal(5, page2.Count);
+    }
 }

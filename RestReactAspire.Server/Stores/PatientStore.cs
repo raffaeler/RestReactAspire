@@ -21,6 +21,20 @@ public class PatientStore
         return (items, totalCount);
     }
 
+    public (IReadOnlyList<Patient> Items, int TotalCount) SearchPaged(string search, int page, int pageSize)
+    {
+        var lowerSearch = search.ToLowerInvariant();
+        var all = _patients.FindAll()
+            .Where(p => p.FirstName.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || p.LastName.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || p.Email.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || p.Phone.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var totalCount = all.Count;
+        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
+
     public Patient? GetById(Guid id) => _patients.FindById(id);
 
     public Patient Add(CreatePatientRequest request)

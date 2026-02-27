@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Alert, CircularProgress, Box, Chip,
-  TablePagination,
+  TablePagination, TextField, InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import type { Doctor, DoctorList } from '../types/doctor';
@@ -20,13 +22,16 @@ export default function DoctorListPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   const fetchDoctors = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const link = await apiClient.getLink('doctors');
-      const data = await apiClient.get<DoctorList>(`${link.href}?page=${page + 1}&pageSize=${rowsPerPage}`);
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+      const data = await apiClient.get<DoctorList>(`${link.href}?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}`);
       setDoctors(data.items);
       setTotalCount(data.pagination.totalCount);
     } catch (err) {
@@ -34,7 +39,7 @@ export default function DoctorListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage]);
+  }, [page, rowsPerPage, search]);
 
   useEffect(() => { fetchDoctors(); }, [fetchDoctors]);
 
@@ -61,6 +66,23 @@ export default function DoctorListPage() {
     setPage(0);
   };
 
+  const handleSearch = () => {
+    setPage(0);
+    setSearch(searchInput);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setPage(0);
+    setSearch('');
+  };
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -79,6 +101,32 @@ export default function DoctorListPage() {
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Search by name, specialty, email…"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ minWidth: 300 }}
+        />
+        <Button variant="contained" onClick={handleSearch}>Search</Button>
+        {search && (
+          <Button variant="outlined" startIcon={<ClearIcon />} onClick={handleClearSearch}>
+            Clear
+          </Button>
+        )}
+      </Box>
 
       {doctors.length === 0 && totalCount === 0 ? (
         <Alert severity="info">No doctors found. Add a new doctor to get started.</Alert>

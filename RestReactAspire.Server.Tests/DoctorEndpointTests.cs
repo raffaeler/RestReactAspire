@@ -265,4 +265,32 @@ public class DoctorEndpointTests : IClassFixture<TestWebApplicationFactory>
         var response = await _client.GetAsync($"/api/doctors/{Guid.NewGuid()}/exams");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetDoctors_WithSearch_ReturnsFilteredResults()
+    {
+        await _client.PostAsJsonAsync("/api/doctors", new CreateDoctorRequest("SearchDoc", "Alpha", "Dermatology", "searchdoc@hospital.com", "555-9001"));
+        await _client.PostAsJsonAsync("/api/doctors", new CreateDoctorRequest("OtherDoc", "Beta", "Surgery", "otherdoc@hospital.com", "555-9002"));
+
+        var response = await _client.GetAsync("/api/doctors?search=SearchDoc");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<DoctorListResponse>();
+        Assert.NotNull(list);
+        Assert.All(list.Items, d => Assert.Contains("SearchDoc", d.FirstName));
+    }
+
+    [Fact]
+    public async Task GetDoctors_WithSearch_BySpecialty()
+    {
+        await _client.PostAsJsonAsync("/api/doctors", new CreateDoctorRequest("Doc", "One", "UniqueSpecialty", "doc1@hospital.com", "555-9003"));
+        await _client.PostAsJsonAsync("/api/doctors", new CreateDoctorRequest("Doc", "Two", "OtherSpecialty", "doc2@hospital.com", "555-9004"));
+
+        var response = await _client.GetAsync("/api/doctors?search=UniqueSpecialty");
+        response.EnsureSuccessStatusCode();
+
+        var list = await response.Content.ReadFromJsonAsync<DoctorListResponse>();
+        Assert.NotNull(list);
+        Assert.Contains(list.Items, d => d.Specialty == "UniqueSpecialty");
+    }
 }

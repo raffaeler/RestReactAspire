@@ -21,6 +21,21 @@ public class ExamStore
         return (items, totalCount);
     }
 
+    public (IReadOnlyList<Exam> Items, int TotalCount) SearchPaged(string search, int page, int pageSize)
+    {
+        var lowerSearch = search.ToLowerInvariant();
+        var all = _exams.FindAll()
+            .Where(e => e.Type.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || e.Status.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || (e.Results != null && e.Results.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+                     || (e.Notes != null && e.Notes.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+                     || e.ScheduledDate.ToString("yyyy-MM-dd").Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var totalCount = all.Count;
+        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
+
     public IReadOnlyList<Exam> GetByPatientId(Guid patientId) =>
         [.. _exams.Find(e => e.PatientId == patientId)];
 
@@ -32,12 +47,42 @@ public class ExamStore
         return (items, totalCount);
     }
 
+    public (IReadOnlyList<Exam> Items, int TotalCount) SearchByPatientIdPaged(Guid patientId, string search, int page, int pageSize)
+    {
+        var lowerSearch = search.ToLowerInvariant();
+        var all = _exams.Find(e => e.PatientId == patientId).ToList()
+            .Where(e => e.Type.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || e.Status.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || (e.Results != null && e.Results.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+                     || (e.Notes != null && e.Notes.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+                     || e.ScheduledDate.ToString("yyyy-MM-dd").Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var totalCount = all.Count;
+        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
+
     public IReadOnlyList<Exam> GetByDoctorId(Guid doctorId) =>
         [.. _exams.Find(e => e.DoctorId == doctorId)];
 
     public (IReadOnlyList<Exam> Items, int TotalCount) GetByDoctorIdPaged(Guid doctorId, int page, int pageSize)
     {
         var all = _exams.Find(e => e.DoctorId == doctorId).ToList();
+        var totalCount = all.Count;
+        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (items, totalCount);
+    }
+
+    public (IReadOnlyList<Exam> Items, int TotalCount) SearchByDoctorIdPaged(Guid doctorId, string search, int page, int pageSize)
+    {
+        var lowerSearch = search.ToLowerInvariant();
+        var all = _exams.Find(e => e.DoctorId == doctorId).ToList()
+            .Where(e => e.Type.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || e.Status.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase)
+                     || (e.Results != null && e.Results.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+                     || (e.Notes != null && e.Notes.Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+                     || e.ScheduledDate.ToString("yyyy-MM-dd").Contains(lowerSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
         var totalCount = all.Count;
         var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, totalCount);

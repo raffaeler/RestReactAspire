@@ -129,4 +129,86 @@ public class ExamStoreTests : IDisposable
         var all = _store.GetAll();
         Assert.Equal(3, all.Count);
     }
+
+    [Fact]
+    public void SearchPaged_FiltersByType()
+    {
+        var patientId = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), "Completed", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+
+        var (items, totalCount) = _store.SearchPaged("Blood", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+        Assert.Equal("Blood Test", items[0].Type);
+    }
+
+    [Fact]
+    public void SearchPaged_FiltersByStatus()
+    {
+        var patientId = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), "Completed", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+
+        var (items, totalCount) = _store.SearchPaged("Scheduled", 1, 10);
+        Assert.Equal(2, totalCount);
+        Assert.Equal(2, items.Count);
+    }
+
+    [Fact]
+    public void SearchPaged_FiltersByDate()
+    {
+        var patientId = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 7, 15), "Completed", null, null));
+
+        var (items, totalCount) = _store.SearchPaged("2025-07", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+        Assert.Equal("X-Ray", items[0].Type);
+    }
+
+    [Fact]
+    public void SearchPaged_IsCaseInsensitive()
+    {
+        var patientId = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+
+        var (items, totalCount) = _store.SearchPaged("blood", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+    }
+
+    [Fact]
+    public void SearchByPatientIdPaged_FiltersWithinPatient()
+    {
+        var patient1 = Guid.NewGuid();
+        var patient2 = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "MRI", new DateOnly(2025, 6, 2), "Completed", null, null));
+        _store.Add(new CreateExamRequest(patient2, null, "Blood Test", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+
+        var (items, totalCount) = _store.SearchByPatientIdPaged(patient1, "Blood", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+        Assert.Equal(patient1, items[0].PatientId);
+    }
+
+    [Fact]
+    public void SearchByDoctorIdPaged_FiltersWithinDoctor()
+    {
+        var patientId = Guid.NewGuid();
+        var doctor1 = Guid.NewGuid();
+        var doctor2 = Guid.NewGuid();
+        _store.Add(new CreateExamRequest(patientId, doctor1, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, doctor1, "MRI", new DateOnly(2025, 6, 2), "Completed", null, null));
+        _store.Add(new CreateExamRequest(patientId, doctor2, "Blood Test", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+
+        var (items, totalCount) = _store.SearchByDoctorIdPaged(doctor1, "MRI", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+        Assert.Equal(doctor1, items[0].DoctorId);
+    }
 }

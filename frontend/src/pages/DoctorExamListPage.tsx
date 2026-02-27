@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Alert, CircularProgress, Box, Chip,
-  TablePagination,
+  TablePagination, TextField, InputAdornment,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import type { Exam, ExamList } from '../types/exam';
@@ -21,6 +23,8 @@ export default function DoctorExamListPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
@@ -30,7 +34,8 @@ export default function DoctorExamListPage() {
       setDoctor(doctorData);
       const examsLink = apiClient.findLink(doctorData.links, 'exams');
       if (!examsLink) throw new Error('Exams link not found on doctor');
-      const data = await apiClient.get<ExamList>(`${examsLink.href}?page=${page + 1}&pageSize=${rowsPerPage}`);
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+      const data = await apiClient.get<ExamList>(`${examsLink.href}?page=${page + 1}&pageSize=${rowsPerPage}${searchParam}`);
       setExams(data.items);
       setTotalCount(data.pagination.totalCount);
     } catch (err) {
@@ -38,7 +43,7 @@ export default function DoctorExamListPage() {
     } finally {
       setLoading(false);
     }
-  }, [doctorId, page, rowsPerPage]);
+  }, [doctorId, page, rowsPerPage, search]);
 
   useEffect(() => { fetchExams(); }, [fetchExams]);
 
@@ -49,6 +54,23 @@ export default function DoctorExamListPage() {
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+  };
+
+  const handleSearch = () => {
+    setPage(0);
+    setSearch(searchInput);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setPage(0);
+    setSearch('');
+  };
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   const statusColor = (status: string): 'default' | 'primary' | 'success' | 'error' => {
@@ -82,6 +104,32 @@ export default function DoctorExamListPage() {
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Search by type, status, date, results…"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ minWidth: 300 }}
+        />
+        <Button variant="contained" onClick={handleSearch}>Search</Button>
+        {search && (
+          <Button variant="outlined" startIcon={<ClearIcon />} onClick={handleClearSearch}>
+            Clear
+          </Button>
+        )}
+      </Box>
 
       {exams.length === 0 && totalCount === 0 ? (
         <Alert severity="info">No exams assigned to this doctor.</Alert>

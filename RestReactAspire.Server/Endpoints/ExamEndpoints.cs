@@ -25,27 +25,30 @@ public static class ExamEndpoints
         return group;
     }
 
-    private static IResult GetAll(ExamStore store, ILogger<ExamStore> logger, int page = 1, int pageSize = 10)
+    private static IResult GetAll(ExamStore store, ILogger<ExamStore> logger, int page = 1, int pageSize = 10, string? search = null)
     {
         using var activity = ExamTelemetry.ActivitySource.StartActivity("GetAllExams");
 
-        logger.LogInformation("Retrieving exams page {Page} with size {PageSize}", page, pageSize);
+        logger.LogInformation("Retrieving exams page {Page} with size {PageSize}, search {Search}", page, pageSize, search);
 
-        var (exams, totalCount) = store.GetPaged(page, pageSize);
+        var (exams, totalCount) = string.IsNullOrWhiteSpace(search)
+            ? store.GetPaged(page, pageSize)
+            : store.SearchPaged(search, page, pageSize);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         activity?.SetTag("exam.count", exams.Count);
         activity?.SetTag("exam.totalCount", totalCount);
+        if (!string.IsNullOrWhiteSpace(search)) activity?.SetTag("exam.search", search);
 
         var items = exams.Select(ToExamResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
-        var links = PaginationLinks.Build("/api/exams", page, pageSize, totalPages,
+        var links = PaginationLinks.Build("/api/exams", page, pageSize, totalPages, search,
             new Link("create", "/api/exams", "POST"));
         var response = new ExamListResponse(items, pagination, links);
 
         return Results.Ok(response);
     }
 
-    private static IResult GetByPatient(Guid patientId, ExamStore store, PatientStore patientStore, ILogger<ExamStore> logger, int page = 1, int pageSize = 10)
+    private static IResult GetByPatient(Guid patientId, ExamStore store, PatientStore patientStore, ILogger<ExamStore> logger, int page = 1, int pageSize = 10, string? search = null)
     {
         using var activity = ExamTelemetry.ActivitySource.StartActivity("GetExamsByPatient");
         activity?.SetTag("patient.id", patientId.ToString());
@@ -57,17 +60,20 @@ public static class ExamEndpoints
             return Results.NotFound();
         }
 
-        logger.LogInformation("Retrieving exams for patient {PatientId} page {Page} with size {PageSize}", patientId, page, pageSize);
+        logger.LogInformation("Retrieving exams for patient {PatientId} page {Page} with size {PageSize}, search {Search}", patientId, page, pageSize, search);
 
-        var (exams, totalCount) = store.GetByPatientIdPaged(patientId, page, pageSize);
+        var (exams, totalCount) = string.IsNullOrWhiteSpace(search)
+            ? store.GetByPatientIdPaged(patientId, page, pageSize)
+            : store.SearchByPatientIdPaged(patientId, search, page, pageSize);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         activity?.SetTag("exam.count", exams.Count);
         activity?.SetTag("exam.totalCount", totalCount);
+        if (!string.IsNullOrWhiteSpace(search)) activity?.SetTag("exam.search", search);
 
         var items = exams.Select(ToExamResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
         var basePath = $"/api/patients/{patientId}/exams";
-        var links = PaginationLinks.Build(basePath, page, pageSize, totalPages,
+        var links = PaginationLinks.Build(basePath, page, pageSize, totalPages, search,
             new Link("create", "/api/exams", "POST"),
             new Link("patient", $"/api/patients/{patientId}", "GET"));
         var response = new ExamListResponse(items, pagination, links);

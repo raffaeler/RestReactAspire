@@ -111,4 +111,48 @@ public class DoctorStoreTests : IDisposable
         var all = _store.GetAll();
         Assert.Equal(3, all.Count);
     }
+
+    [Fact]
+    public void SearchPaged_FiltersByName()
+    {
+        _store.Add(new CreateDoctorRequest("John", "Smith", "Cardiology", "john@hospital.com", "555-0001"));
+        _store.Add(new CreateDoctorRequest("Jane", "Doe", "Neurology", "jane@hospital.com", "555-0002"));
+
+        var (items, totalCount) = _store.SearchPaged("John", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+        Assert.Equal("John", items[0].FirstName);
+    }
+
+    [Fact]
+    public void SearchPaged_FiltersBySpecialty()
+    {
+        _store.Add(new CreateDoctorRequest("John", "Smith", "Cardiology", "john@hospital.com", "555-0001"));
+        _store.Add(new CreateDoctorRequest("Jane", "Doe", "Neurology", "jane@hospital.com", "555-0002"));
+        _store.Add(new CreateDoctorRequest("Bob", "Jones", "Cardiology", "bob@hospital.com", "555-0003"));
+
+        var (items, totalCount) = _store.SearchPaged("Cardiology", 1, 10);
+        Assert.Equal(2, totalCount);
+        Assert.Equal(2, items.Count);
+    }
+
+    [Fact]
+    public void SearchPaged_IsCaseInsensitive()
+    {
+        _store.Add(new CreateDoctorRequest("John", "Smith", "Cardiology", "john@hospital.com", "555-0001"));
+
+        var (items, totalCount) = _store.SearchPaged("cardiology", 1, 10);
+        Assert.Equal(1, totalCount);
+        Assert.Single(items);
+    }
+
+    [Fact]
+    public void SearchPaged_ReturnsEmpty_WhenNoMatch()
+    {
+        _store.Add(new CreateDoctorRequest("John", "Smith", "Cardiology", "john@hospital.com", "555-0001"));
+
+        var (items, totalCount) = _store.SearchPaged("zzz", 1, 10);
+        Assert.Equal(0, totalCount);
+        Assert.Empty(items);
+    }
 }
