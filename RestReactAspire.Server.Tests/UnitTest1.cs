@@ -1,11 +1,22 @@
-﻿using RestReactAspire.Server.Models;
+﻿using LiteDB;
+using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 
 namespace RestReactAspire.Server.Tests;
 
-public class PatientStoreTests
+public class PatientStoreTests : IDisposable
 {
-    private readonly PatientStore _store = new();
+    private readonly ILiteDatabase _db;
+    private readonly PatientStore _store;
+
+    public PatientStoreTests()
+    {
+        LiteDbFactory.ConfigureMapper();
+        _db = new LiteDatabase(":memory:");
+        _store = new PatientStore(_db);
+    }
+
+    public void Dispose() => _db.Dispose();
 
     [Fact]
     public void GetAll_ReturnsEmpty_WhenNoPatients()

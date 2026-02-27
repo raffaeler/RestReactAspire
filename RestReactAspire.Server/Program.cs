@@ -1,3 +1,4 @@
+using LiteDB;
 using RestReactAspire.Server.Endpoints;
 using RestReactAspire.Server.Stores;
 
@@ -11,6 +12,11 @@ builder.Services.AddProblemDetails();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Register LiteDB
+LiteDbFactory.ConfigureMapper();
+var liteDbConnectionString = builder.Configuration.GetConnectionString("LiteDb") ?? "Filename=hospital.db;Connection=shared";
+builder.Services.AddSingleton<ILiteDatabase>(_ => new LiteDatabase(liteDbConnectionString));
 
 // Register application services
 builder.Services.AddSingleton<PatientStore>();

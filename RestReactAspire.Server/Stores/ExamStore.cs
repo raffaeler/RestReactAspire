@@ -1,21 +1,26 @@
-using System.Collections.Concurrent;
+using LiteDB;
 using RestReactAspire.Server.Models;
 
 namespace RestReactAspire.Server.Stores;
 
 public class ExamStore
 {
-    private readonly ConcurrentDictionary<Guid, Exam> _exams = new();
+    private readonly ILiteCollection<Exam> _exams;
 
-    public IReadOnlyList<Exam> GetAll() => [.. _exams.Values];
+    public ExamStore(ILiteDatabase database)
+    {
+        _exams = database.GetCollection<Exam>("exams");
+    }
+
+    public IReadOnlyList<Exam> GetAll() => [.. _exams.FindAll()];
 
     public IReadOnlyList<Exam> GetByPatientId(Guid patientId) =>
-        [.. _exams.Values.Where(e => e.PatientId == patientId)];
+        [.. _exams.Find(e => e.PatientId == patientId)];
 
     public IReadOnlyList<Exam> GetByDoctorId(Guid doctorId) =>
-        [.. _exams.Values.Where(e => e.DoctorId == doctorId)];
+        [.. _exams.Find(e => e.DoctorId == doctorId)];
 
-    public Exam? GetById(Guid id) => _exams.GetValueOrDefault(id);
+    public Exam? GetById(Guid id) => _exams.FindById(id);
 
     public Exam Add(CreateExamRequest request)
     {
@@ -30,13 +35,14 @@ public class ExamStore
             Results = request.Results,
             Notes = request.Notes
         };
-        _exams[exam.Id] = exam;
+        _exams.Insert(exam);
         return exam;
     }
 
     public Exam? Update(Guid id, UpdateExamRequest request)
     {
-        if (!_exams.TryGetValue(id, out var existing))
+        var existing = _exams.FindById(id);
+        if (existing is null)
             return null;
 
         var updated = new Exam
@@ -50,13 +56,14 @@ public class ExamStore
             Results = request.Results,
             Notes = request.Notes
         };
-        _exams[id] = updated;
+        _exams.Update(updated);
         return updated;
     }
 
     public Exam? AssignDoctor(Guid id, Guid? doctorId)
     {
-        if (!_exams.TryGetValue(id, out var existing))
+        var existing = _exams.FindById(id);
+        if (existing is null)
             return null;
 
         var updated = new Exam
@@ -70,9 +77,9 @@ public class ExamStore
             Results = existing.Results,
             Notes = existing.Notes
         };
-        _exams[id] = updated;
+        _exams.Update(updated);
         return updated;
     }
 
-    public bool Delete(Guid id) => _exams.TryRemove(id, out _);
+    public bool Delete(Guid id) => _exams.Delete(id);
 }

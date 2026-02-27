@@ -1,15 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using RestReactAspire.Server.Models;
 
 namespace RestReactAspire.Server.Tests;
 
-public class ExamEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class ExamEndpointTests : IClassFixture<TestWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
-    public ExamEndpointTests(WebApplicationFactory<Program> factory)
+    public ExamEndpointTests(TestWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }

@@ -1,11 +1,22 @@
+using LiteDB;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 
 namespace RestReactAspire.Server.Tests;
 
-public class ExamStoreTests
+public class ExamStoreTests : IDisposable
 {
-    private readonly ExamStore _store = new();
+    private readonly ILiteDatabase _db;
+    private readonly ExamStore _store;
+
+    public ExamStoreTests()
+    {
+        LiteDbFactory.ConfigureMapper();
+        _db = new LiteDatabase(":memory:");
+        _store = new ExamStore(_db);
+    }
+
+    public void Dispose() => _db.Dispose();
 
     private static CreateExamRequest MakeRequest(Guid patientId) =>
         new(patientId, null, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);

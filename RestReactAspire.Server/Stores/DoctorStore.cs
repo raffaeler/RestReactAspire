@@ -1,15 +1,20 @@
-using System.Collections.Concurrent;
+using LiteDB;
 using RestReactAspire.Server.Models;
 
 namespace RestReactAspire.Server.Stores;
 
 public class DoctorStore
 {
-    private readonly ConcurrentDictionary<Guid, Doctor> _doctors = new();
+    private readonly ILiteCollection<Doctor> _doctors;
 
-    public IReadOnlyList<Doctor> GetAll() => [.. _doctors.Values];
+    public DoctorStore(ILiteDatabase database)
+    {
+        _doctors = database.GetCollection<Doctor>("doctors");
+    }
 
-    public Doctor? GetById(Guid id) => _doctors.GetValueOrDefault(id);
+    public IReadOnlyList<Doctor> GetAll() => [.. _doctors.FindAll()];
+
+    public Doctor? GetById(Guid id) => _doctors.FindById(id);
 
     public Doctor Add(CreateDoctorRequest request)
     {
@@ -22,13 +27,13 @@ public class DoctorStore
             Email = request.Email,
             Phone = request.Phone
         };
-        _doctors[doctor.Id] = doctor;
+        _doctors.Insert(doctor);
         return doctor;
     }
 
     public Doctor? Update(Guid id, UpdateDoctorRequest request)
     {
-        if (!_doctors.ContainsKey(id))
+        if (_doctors.FindById(id) is null)
             return null;
 
         var updated = new Doctor
@@ -40,9 +45,9 @@ public class DoctorStore
             Email = request.Email,
             Phone = request.Phone
         };
-        _doctors[id] = updated;
+        _doctors.Update(updated);
         return updated;
     }
 
-    public bool Delete(Guid id) => _doctors.TryRemove(id, out _);
+    public bool Delete(Guid id) => _doctors.Delete(id);
 }

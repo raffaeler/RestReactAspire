@@ -1,11 +1,22 @@
+using LiteDB;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 
 namespace RestReactAspire.Server.Tests;
 
-public class DoctorStoreTests
+public class DoctorStoreTests : IDisposable
 {
-    private readonly DoctorStore _store = new();
+    private readonly ILiteDatabase _db;
+    private readonly DoctorStore _store;
+
+    public DoctorStoreTests()
+    {
+        LiteDbFactory.ConfigureMapper();
+        _db = new LiteDatabase(":memory:");
+        _store = new DoctorStore(_db);
+    }
+
+    public void Dispose() => _db.Dispose();
 
     private static CreateDoctorRequest MakeRequest() =>
         new("John", "Smith", "Cardiology", "john.smith@hospital.com", "555-1234");

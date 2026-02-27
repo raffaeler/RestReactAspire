@@ -7,6 +7,7 @@ APIs and UI must implement the following features:
 Step 1. Patient data management: Create, Read, Update, and Delete (CRUD) operations for patient records.
 Step 2. Exams management: CRUD operations for medical exams, including scheduling and results.
 Step 3. Doctors management: CRUD operations for doctor records, including their specialties and schedules. They can be assigned to exams and eventually changed if needed.
+Step 4. Change the in-memory storage with LiteDB, to persist the data.
 
 ## Technology stack
 - Backend
@@ -14,6 +15,7 @@ Step 3. Doctors management: CRUD operations for doctor records, including their 
   - Minimal APIs
   - Aspire
   - Test suite using xUnit
+  - LiteDB (https://github.com/litedb-org/LiteDB) for data storage, to avoid evolving the data over schema changes, and to keep the solution simple and self-contained.
 - Frontend
   - React with TypeScript
   - MUI components
