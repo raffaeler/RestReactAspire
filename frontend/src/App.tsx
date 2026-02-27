@@ -12,6 +12,7 @@ import DoctorDetailPage from './pages/DoctorDetailPage';
 import DoctorFormPage from './pages/DoctorFormPage';
 import DoctorExamListPage from './pages/DoctorExamListPage';
 import AdminPage from './pages/AdminPage';
+import StatisticsPage from './pages/StatisticsPage';
 
 const theme = createTheme({
   palette: {
@@ -46,6 +47,7 @@ function App() {
             <Route path="doctors/:id/edit" element={<DoctorFormPage />} />
             <Route path="doctors/:doctorId/exams" element={<DoctorExamListPage />} />
             <Route path="admin" element={<AdminPage />} />
+            <Route path="statistics" element={<StatisticsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

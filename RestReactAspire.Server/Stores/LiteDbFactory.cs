@@ -1,5 +1,6 @@
 using System.Globalization;
 using LiteDB;
+using RestReactAspire.Server.Models;
 
 namespace RestReactAspire.Server.Stores;
 
@@ -23,6 +24,12 @@ public static class LiteDbFactory
                 serialize: (TimeOnly t) => new BsonValue(t.ToString("O", CultureInfo.InvariantCulture)),
                 deserialize: (BsonValue bson) => TimeOnly.ParseExact(bson.AsString, "O", CultureInfo.InvariantCulture)
             );
+
+            // Pre-warm entity mapper cache to avoid concurrent lazy-init race conditions
+            // when multiple requests trigger deserialization simultaneously.
+            BsonMapper.Global.Entity<Patient>();
+            BsonMapper.Global.Entity<Doctor>();
+            BsonMapper.Global.Entity<Exam>();
 
             _configured = true;
         }

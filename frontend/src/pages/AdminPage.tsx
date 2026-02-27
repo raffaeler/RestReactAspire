@@ -154,7 +154,7 @@ export default function AdminPage() {
           </Button>
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          <strong>Seed</strong> adds 20 patients, 10 doctors, and 30 exams with sample data.
+          <strong>Seed</strong> adds 100 patients, 30 doctors, and 200 exams with sample data.
           <strong> Reset</strong> removes all data from the database.
         </Typography>
       </Paper>

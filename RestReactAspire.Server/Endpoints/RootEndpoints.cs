@@ -21,7 +21,11 @@ public static class RootEndpoints
                 new Link("doctors", "/api/doctors", "GET"),
                 new Link("admin-stats", "/api/admin/stats", "GET"),
                 new Link("admin-seed", "/api/admin/seed", "POST"),
-                new Link("admin-reset", "/api/admin/reset", "POST")
+                new Link("admin-reset", "/api/admin/reset", "POST"),
+                new Link("statistics-patients-by-age-group", "/api/statistics/patients-by-age-group", "GET"),
+                new Link("statistics-exams-per-doctor", "/api/statistics/exams-per-doctor", "GET"),
+                new Link("statistics-exams-over-time", "/api/statistics/exams-over-time", "GET"),
+                new Link("statistics-avg-duration-by-exam-type", "/api/statistics/avg-duration-by-exam-type", "GET")
             ]);
             return Results.Ok(response);
         })

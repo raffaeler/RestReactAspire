@@ -1,3 +1,5 @@
+using LiteDB;
+
 namespace RestReactAspire.Server.Models;
 
 public class Exam
@@ -13,6 +15,7 @@ public class Exam
     public string? Results { get; set; }
     public string? Notes { get; set; }
 
+    [BsonIgnore]
     public TimeOnly? EndTime => ScheduledTime.HasValue && DurationMinutes.HasValue
         ? ScheduledTime.Value.AddMinutes(DurationMinutes.Value)
         : null;
