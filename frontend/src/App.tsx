@@ -7,6 +7,10 @@ import PatientFormPage from './pages/PatientFormPage';
 import ExamListPage from './pages/ExamListPage';
 import ExamDetailPage from './pages/ExamDetailPage';
 import ExamFormPage from './pages/ExamFormPage';
+import DoctorListPage from './pages/DoctorListPage';
+import DoctorDetailPage from './pages/DoctorDetailPage';
+import DoctorFormPage from './pages/DoctorFormPage';
+import DoctorExamListPage from './pages/DoctorExamListPage';
 
 const theme = createTheme({
   palette: {
@@ -35,6 +39,11 @@ function App() {
             <Route path="exams/new" element={<ExamFormPage />} />
             <Route path="exams/:id" element={<ExamDetailPage />} />
             <Route path="exams/:id/edit" element={<ExamFormPage />} />
+            <Route path="doctors" element={<DoctorListPage />} />
+            <Route path="doctors/new" element={<DoctorFormPage />} />
+            <Route path="doctors/:id" element={<DoctorDetailPage />} />
+            <Route path="doctors/:id/edit" element={<DoctorFormPage />} />
+            <Route path="doctors/:doctorId/exams" element={<DoctorExamListPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

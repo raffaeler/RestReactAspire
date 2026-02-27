@@ -6,7 +6,7 @@ The scenario is a fictious day-hospital management system, where patients can be
 APIs and UI must implement the following features:
 Step 1. Patient data management: Create, Read, Update, and Delete (CRUD) operations for patient records.
 Step 2. Exams management: CRUD operations for medical exams, including scheduling and results.
-Step 3. Doctors management: CRUD operations for doctor records, including their specialties and schedules.
+Step 3. Doctors management: CRUD operations for doctor records, including their specialties and schedules. They can be assigned to exams and eventually changed if needed.
 
 ## Technology stack
 - Backend

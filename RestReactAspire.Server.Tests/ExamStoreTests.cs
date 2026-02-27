@@ -8,7 +8,7 @@ public class ExamStoreTests
     private readonly ExamStore _store = new();
 
     private static CreateExamRequest MakeRequest(Guid patientId) =>
-        new(patientId, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);
+        new(patientId, null, "Blood Test", new DateOnly(2025, 6, 15), "Scheduled", null, null);
 
     [Fact]
     public void GetAll_ReturnsEmpty_WhenNoExams()
@@ -57,9 +57,9 @@ public class ExamStoreTests
     {
         var patient1 = Guid.NewGuid();
         var patient2 = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patient1, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patient1, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patient2, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient1, null, "X-Ray", new DateOnly(2025, 6, 2), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patient2, null, "MRI", new DateOnly(2025, 6, 3), "Scheduled", null, null));
 
         var result = _store.GetByPatientId(patient1);
 
@@ -72,7 +72,7 @@ public class ExamStoreTests
     {
         var exam = _store.Add(MakeRequest(Guid.NewGuid()));
 
-        var updateRequest = new UpdateExamRequest("MRI", new DateOnly(2025, 7, 1), "Completed", "Normal", "Follow up in 6 months");
+        var updateRequest = new UpdateExamRequest(null, "MRI", new DateOnly(2025, 7, 1), "Completed", "Normal", "Follow up in 6 months");
         var updated = _store.Update(exam.Id, updateRequest);
 
         Assert.NotNull(updated);
@@ -87,7 +87,7 @@ public class ExamStoreTests
     [Fact]
     public void Update_ReturnsNull_WhenNotExists()
     {
-        var request = new UpdateExamRequest("MRI", new DateOnly(2025, 7, 1), "Completed", null, null);
+        var request = new UpdateExamRequest(null, "MRI", new DateOnly(2025, 7, 1), "Completed", null, null);
         var result = _store.Update(Guid.NewGuid(), request);
         Assert.Null(result);
     }
@@ -111,9 +111,9 @@ public class ExamStoreTests
     public void GetAll_ReturnsAllExams_AfterMultipleAdds()
     {
         var patientId = Guid.NewGuid();
-        _store.Add(new CreateExamRequest(patientId, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
-        _store.Add(new CreateExamRequest(patientId, "X-Ray", new DateOnly(2025, 6, 2), "Completed", "Clear", null));
-        _store.Add(new CreateExamRequest(Guid.NewGuid(), "MRI", new DateOnly(2025, 6, 3), "Cancelled", null, "Patient rescheduled"));
+        _store.Add(new CreateExamRequest(patientId, null, "Blood Test", new DateOnly(2025, 6, 1), "Scheduled", null, null));
+        _store.Add(new CreateExamRequest(patientId, null, "X-Ray", new DateOnly(2025, 6, 2), "Completed", "Clear", null));
+        _store.Add(new CreateExamRequest(Guid.NewGuid(), null, "MRI", new DateOnly(2025, 6, 3), "Cancelled", null, "Patient rescheduled"));
 
         var all = _store.GetAll();
         Assert.Equal(3, all.Count);

@@ -9,6 +9,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import type { Exam, CreateExamRequest, UpdateExamRequest } from '../types/exam';
 import type { Patient, PatientList } from '../types/patient';
+import type { Doctor, DoctorList } from '../types/doctor';
 import type { Link } from '../types/hateoas';
 
 const examStatuses = ['Scheduled', 'Completed', 'Cancelled'];
@@ -20,6 +21,7 @@ export default function ExamFormPage() {
 
   const [formData, setFormData] = useState<CreateExamRequest>({
     patientId: patientId ?? '',
+    doctorId: null,
     type: '',
     scheduledDate: '',
     status: 'Scheduled',
@@ -32,7 +34,21 @@ export default function ExamFormPage() {
   const [examLinks, setExamLinks] = useState<Link[]>([]);
   const [examPatientId, setExamPatientId] = useState<string | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const needsPatientSelector = !patientId && !isEdit;
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const link = await apiClient.getLink('doctors');
+        const data = await apiClient.get<DoctorList>(link.href);
+        setDoctors(data.items);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load doctors');
+      }
+    };
+    fetchDoctors();
+  }, []);
 
   useEffect(() => {
     if (!needsPatientSelector) return;
@@ -57,6 +73,7 @@ export default function ExamFormPage() {
         const data = await apiClient.get<Exam>(`/api/exams/${id}`);
         setFormData({
           patientId: data.patientId,
+          doctorId: data.doctorId,
           type: data.type,
           scheduledDate: data.scheduledDate,
           status: data.status,
@@ -78,6 +95,8 @@ export default function ExamFormPage() {
     const value = e.target.value;
     if (field === 'results' || field === 'notes') {
       setFormData(prev => ({ ...prev, [field]: value || null }));
+    } else if (field === 'doctorId') {
+      setFormData(prev => ({ ...prev, [field]: value || null }));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
     }
@@ -93,6 +112,7 @@ export default function ExamFormPage() {
         const updateLink = apiClient.findLink(examLinks, 'update');
         if (!updateLink) throw new Error('Update link not available');
         const updateRequest: UpdateExamRequest = {
+          doctorId: formData.doctorId,
           type: formData.type,
           scheduledDate: formData.scheduledDate,
           status: formData.status,
@@ -155,6 +175,19 @@ export default function ExamFormPage() {
               ))}
             </TextField>
           )}
+          <TextField
+            label="Doctor"
+            select
+            value={formData.doctorId ?? ''}
+            onChange={handleChange('doctorId')}
+          >
+            <MenuItem value="">
+              <em>No doctor assigned</em>
+            </MenuItem>
+            {doctors.map(d => (
+              <MenuItem key={d.id} value={d.id}>Dr. {d.firstName} {d.lastName} — {d.specialty}</MenuItem>
+            ))}
+          </TextField>
           <TextField label="Type" value={formData.type} onChange={handleChange('type')} required
             placeholder="e.g., Blood Test, X-Ray, MRI" />
           <TextField

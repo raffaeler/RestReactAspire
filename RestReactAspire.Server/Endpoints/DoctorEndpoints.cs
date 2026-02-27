@@ -1,0 +1,153 @@
+using RestReactAspire.Server.Models;
+using RestReactAspire.Server.Stores;
+using RestReactAspire.Server.Telemetry;
+
+namespace RestReactAspire.Server.Endpoints;
+
+public static class DoctorEndpoints
+{
+    public static RouteGroupBuilder MapDoctorEndpoints(this RouteGroupBuilder group)
+    {
+        group.MapGet("/", GetAll);
+        group.MapGet("/{id:guid}", GetById).WithName("GetDoctorById");
+        group.MapPost("/", Create);
+        group.MapPut("/{id:guid}", Update);
+        group.MapDelete("/{id:guid}", Delete);
+
+        return group;
+    }
+
+    public static RouteGroupBuilder MapDoctorExamEndpoints(this RouteGroupBuilder group)
+    {
+        group.MapGet("/", GetByDoctor);
+
+        return group;
+    }
+
+    private static IResult GetAll(DoctorStore store, ILogger<DoctorStore> logger)
+    {
+        using var activity = DoctorTelemetry.ActivitySource.StartActivity("GetAllDoctors");
+
+        logger.LogInformation("Retrieving all doctors");
+
+        var doctors = store.GetAll();
+        activity?.SetTag("doctor.count", doctors.Count);
+
+        var items = doctors.Select(ToDoctorResponse).ToList();
+        var response = new DoctorListResponse(items, [
+            new Link("self", "/api/doctors", "GET"),
+            new Link("create", "/api/doctors", "POST")
+        ]);
+
+        return Results.Ok(response);
+    }
+
+    private static IResult GetById(Guid id, DoctorStore store, ILogger<DoctorStore> logger)
+    {
+        using var activity = DoctorTelemetry.ActivitySource.StartActivity("GetDoctorById");
+        activity?.SetTag("doctor.id", id.ToString());
+
+        var doctor = store.GetById(id);
+        if (doctor is null)
+        {
+            logger.LogWarning("Doctor {DoctorId} not found", id);
+            return Results.NotFound();
+        }
+
+        logger.LogInformation("Retrieved doctor {DoctorId}", id);
+        return Results.Ok(ToDoctorResponse(doctor));
+    }
+
+    private static IResult Create(CreateDoctorRequest request, DoctorStore store, ILogger<DoctorStore> logger)
+    {
+        using var activity = DoctorTelemetry.ActivitySource.StartActivity("CreateDoctor");
+
+        var doctor = store.Add(request);
+        activity?.SetTag("doctor.id", doctor.Id.ToString());
+        DoctorTelemetry.DoctorsCreated.Add(1);
+
+        logger.LogInformation("Created doctor {DoctorId}: {FirstName} {LastName}",
+            doctor.Id, doctor.FirstName, doctor.LastName);
+
+        return Results.Created($"/api/doctors/{doctor.Id}", ToDoctorResponse(doctor));
+    }
+
+    private static IResult Update(Guid id, UpdateDoctorRequest request, DoctorStore store, ILogger<DoctorStore> logger)
+    {
+        using var activity = DoctorTelemetry.ActivitySource.StartActivity("UpdateDoctor");
+        activity?.SetTag("doctor.id", id.ToString());
+
+        var doctor = store.Update(id, request);
+        if (doctor is null)
+        {
+            logger.LogWarning("Doctor {DoctorId} not found for update", id);
+            return Results.NotFound();
+        }
+
+        DoctorTelemetry.DoctorsUpdated.Add(1);
+        logger.LogInformation("Updated doctor {DoctorId}", id);
+
+        return Results.Ok(ToDoctorResponse(doctor));
+    }
+
+    private static IResult Delete(Guid id, DoctorStore store, ILogger<DoctorStore> logger)
+    {
+        using var activity = DoctorTelemetry.ActivitySource.StartActivity("DeleteDoctor");
+        activity?.SetTag("doctor.id", id.ToString());
+
+        if (!store.Delete(id))
+        {
+            logger.LogWarning("Doctor {DoctorId} not found for deletion", id);
+            return Results.NotFound();
+        }
+
+        DoctorTelemetry.DoctorsDeleted.Add(1);
+        logger.LogInformation("Deleted doctor {DoctorId}", id);
+
+        return Results.NoContent();
+    }
+
+    private static IResult GetByDoctor(Guid doctorId, ExamStore examStore, DoctorStore doctorStore, ILogger<DoctorStore> logger)
+    {
+        using var activity = DoctorTelemetry.ActivitySource.StartActivity("GetExamsByDoctor");
+        activity?.SetTag("doctor.id", doctorId.ToString());
+
+        var doctor = doctorStore.GetById(doctorId);
+        if (doctor is null)
+        {
+            logger.LogWarning("Doctor {DoctorId} not found when listing exams", doctorId);
+            return Results.NotFound();
+        }
+
+        logger.LogInformation("Retrieving exams for doctor {DoctorId}", doctorId);
+
+        var exams = examStore.GetByDoctorId(doctorId);
+        activity?.SetTag("exam.count", exams.Count);
+
+        var items = exams.Select(ExamEndpoints.ToExamResponse).ToList();
+        var response = new ExamListResponse(items, [
+            new Link("self", $"/api/doctors/{doctorId}/exams", "GET"),
+            new Link("doctor", $"/api/doctors/{doctorId}", "GET")
+        ]);
+
+        return Results.Ok(response);
+    }
+
+    private static DoctorResponse ToDoctorResponse(Doctor doctor)
+    {
+        return new DoctorResponse(
+            doctor.Id,
+            doctor.FirstName,
+            doctor.LastName,
+            doctor.Specialty,
+            doctor.Email,
+            doctor.Phone,
+            [
+                new Link("self", $"/api/doctors/{doctor.Id}", "GET"),
+                new Link("update", $"/api/doctors/{doctor.Id}", "PUT"),
+                new Link("delete", $"/api/doctors/{doctor.Id}", "DELETE"),
+                new Link("exams", $"/api/doctors/{doctor.Id}/exams", "GET"),
+                new Link("collection", "/api/doctors", "GET")
+            ]);
+    }
+}

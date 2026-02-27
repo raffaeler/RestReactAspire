@@ -2,6 +2,7 @@ namespace RestReactAspire.Server.Models;
 
 public record CreateExamRequest(
     Guid PatientId,
+    Guid? DoctorId,
     string Type,
     DateOnly ScheduledDate,
     string Status,
@@ -9,6 +10,7 @@ public record CreateExamRequest(
     string? Notes);
 
 public record UpdateExamRequest(
+    Guid? DoctorId,
     string Type,
     DateOnly ScheduledDate,
     string Status,
@@ -18,6 +20,7 @@ public record UpdateExamRequest(
 public record ExamResponse(
     Guid Id,
     Guid PatientId,
+    Guid? DoctorId,
     string Type,
     DateOnly ScheduledDate,
     string Status,

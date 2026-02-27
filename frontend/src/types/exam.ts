@@ -3,6 +3,7 @@ import type { Link } from './hateoas';
 export interface Exam {
   id: string;
   patientId: string;
+  doctorId: string | null;
   type: string;
   scheduledDate: string;
   status: string;
@@ -18,6 +19,7 @@ export interface ExamList {
 
 export interface CreateExamRequest {
   patientId: string;
+  doctorId: string | null;
   type: string;
   scheduledDate: string;
   status: string;
@@ -26,9 +28,14 @@ export interface CreateExamRequest {
 }
 
 export interface UpdateExamRequest {
+  doctorId: string | null;
   type: string;
   scheduledDate: string;
   status: string;
   results: string | null;
   notes: string | null;
+}
+
+export interface AssignDoctorRequest {
+  doctorId: string | null;
 }

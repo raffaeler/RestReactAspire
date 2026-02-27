@@ -15,6 +15,7 @@ builder.Services.AddOpenApi();
 // Register application services
 builder.Services.AddSingleton<PatientStore>();
 builder.Services.AddSingleton<ExamStore>();
+builder.Services.AddSingleton<DoctorStore>();
 
 var app = builder.Build();
 
@@ -31,6 +32,8 @@ api.MapRootEndpoints();
 api.MapGroup("patients").MapPatientEndpoints();
 api.MapGroup("exams").MapExamEndpoints();
 api.MapGroup("patients/{patientId:guid}/exams").MapPatientExamEndpoints();
+api.MapGroup("doctors").MapDoctorEndpoints();
+api.MapGroup("doctors/{doctorId:guid}/exams").MapDoctorExamEndpoints();
 
 app.MapDefaultEndpoints();
 

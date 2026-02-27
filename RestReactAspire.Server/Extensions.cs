@@ -60,13 +60,15 @@ public static class Extensions
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
                     .AddMeter(PatientTelemetry.SourceName)
-                    .AddMeter(ExamTelemetry.SourceName);
+                    .AddMeter(ExamTelemetry.SourceName)
+                    .AddMeter(DoctorTelemetry.SourceName);
             })
             .WithTracing(tracing =>
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddSource(PatientTelemetry.SourceName)
                     .AddSource(ExamTelemetry.SourceName)
+                    .AddSource(DoctorTelemetry.SourceName)
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>
