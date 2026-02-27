@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 using RestReactAspire.Server.Telemetry;
@@ -30,6 +31,7 @@ public static class PatientEndpoints
         activity?.SetTag("patient.count", patients.Count);
         activity?.SetTag("patient.totalCount", totalCount);
         if (!string.IsNullOrWhiteSpace(search)) activity?.SetTag("patient.search", search);
+        PatientTelemetry.PatientsQueried.Add(1);
 
         var items = patients.Select(ToPatientResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
@@ -49,10 +51,12 @@ public static class PatientEndpoints
         var patient = store.GetById(id);
         if (patient is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Patient not found");
             logger.LogWarning("Patient {PatientId} not found", id);
             return Results.NotFound();
         }
 
+        PatientTelemetry.PatientsQueried.Add(1);
         logger.LogInformation("Retrieved patient {PatientId}", id);
         return Results.Ok(ToPatientResponse(patient));
     }
@@ -79,6 +83,7 @@ public static class PatientEndpoints
         var patient = store.Update(id, request);
         if (patient is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Patient not found");
             logger.LogWarning("Patient {PatientId} not found for update", id);
             return Results.NotFound();
         }
@@ -96,6 +101,7 @@ public static class PatientEndpoints
 
         if (!store.Delete(id))
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Patient not found");
             logger.LogWarning("Patient {PatientId} not found for deletion", id);
             return Results.NotFound();
         }

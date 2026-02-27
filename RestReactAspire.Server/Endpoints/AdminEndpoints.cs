@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using LiteDB;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
@@ -102,6 +103,8 @@ public static class AdminEndpoints
         var patientCount = database.GetCollection<Patient>("patients").Count();
         var doctorCount = database.GetCollection<Doctor>("doctors").Count();
         var examCount = database.GetCollection<Exam>("exams").Count();
+
+        AdminTelemetry.StatsQueried.Add(1);
 
         logger.LogInformation("Database stats: {Patients} patients, {Doctors} doctors, {Exams} exams",
             patientCount, doctorCount, examCount);

@@ -1,4 +1,5 @@
 using RestReactAspire.Server.Models;
+using RestReactAspire.Server.Telemetry;
 
 namespace RestReactAspire.Server.Endpoints;
 
@@ -6,8 +7,13 @@ public static class RootEndpoints
 {
     public static RouteGroupBuilder MapRootEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/", () =>
+        group.MapGet("/", (ILogger<Program> logger) =>
         {
+            using var activity = RootTelemetry.ActivitySource.StartActivity("GetApiRoot");
+
+            logger.LogInformation("API root requested");
+            RootTelemetry.RootRequested.Add(1);
+
             var response = new ApiRootResponse([
                 new Link("self", "/api", "GET"),
                 new Link("patients", "/api/patients", "GET"),

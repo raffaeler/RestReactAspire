@@ -11,6 +11,9 @@ public static class DoctorTelemetry
 
     private static readonly Meter Meter = new(SourceName);
 
+    public static readonly Counter<long> DoctorsQueried = Meter.CreateCounter<long>(
+        "hospital.doctors.queried", description: "Number of times doctors were queried");
+
     public static readonly Counter<long> DoctorsCreated = Meter.CreateCounter<long>(
         "hospital.doctors.created", description: "Number of doctors created");
 

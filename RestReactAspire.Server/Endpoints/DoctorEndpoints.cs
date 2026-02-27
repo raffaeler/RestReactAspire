@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 using RestReactAspire.Server.Telemetry;
@@ -37,6 +38,7 @@ public static class DoctorEndpoints
         activity?.SetTag("doctor.count", doctors.Count);
         activity?.SetTag("doctor.totalCount", totalCount);
         if (!string.IsNullOrWhiteSpace(search)) activity?.SetTag("doctor.search", search);
+        DoctorTelemetry.DoctorsQueried.Add(1);
 
         var items = doctors.Select(ToDoctorResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
@@ -56,10 +58,12 @@ public static class DoctorEndpoints
         var doctor = store.GetById(id);
         if (doctor is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
             logger.LogWarning("Doctor {DoctorId} not found", id);
             return Results.NotFound();
         }
 
+        DoctorTelemetry.DoctorsQueried.Add(1);
         logger.LogInformation("Retrieved doctor {DoctorId}", id);
         return Results.Ok(ToDoctorResponse(doctor));
     }
@@ -86,6 +90,7 @@ public static class DoctorEndpoints
         var doctor = store.Update(id, request);
         if (doctor is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
             logger.LogWarning("Doctor {DoctorId} not found for update", id);
             return Results.NotFound();
         }
@@ -103,6 +108,7 @@ public static class DoctorEndpoints
 
         if (!store.Delete(id))
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
             logger.LogWarning("Doctor {DoctorId} not found for deletion", id);
             return Results.NotFound();
         }
@@ -121,6 +127,7 @@ public static class DoctorEndpoints
         var doctor = doctorStore.GetById(doctorId);
         if (doctor is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
             logger.LogWarning("Doctor {DoctorId} not found when listing exams", doctorId);
             return Results.NotFound();
         }
@@ -134,6 +141,7 @@ public static class DoctorEndpoints
         activity?.SetTag("exam.count", exams.Count);
         activity?.SetTag("exam.totalCount", totalCount);
         if (!string.IsNullOrWhiteSpace(search)) activity?.SetTag("exam.search", search);
+        DoctorTelemetry.DoctorsQueried.Add(1);
 
         var items = exams.Select(ExamEndpoints.ToExamResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 using RestReactAspire.Server.Telemetry;
@@ -38,6 +39,7 @@ public static class ExamEndpoints
         activity?.SetTag("exam.count", exams.Count);
         activity?.SetTag("exam.totalCount", totalCount);
         if (!string.IsNullOrWhiteSpace(search)) activity?.SetTag("exam.search", search);
+        ExamTelemetry.ExamsQueried.Add(1);
 
         var items = exams.Select(ToExamResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
@@ -57,6 +59,7 @@ public static class ExamEndpoints
         var patient = patientStore.GetById(patientId);
         if (patient is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Patient not found");
             logger.LogWarning("Patient {PatientId} not found when listing exams", patientId);
             return Results.NotFound();
         }
@@ -70,6 +73,7 @@ public static class ExamEndpoints
         activity?.SetTag("exam.count", exams.Count);
         activity?.SetTag("exam.totalCount", totalCount);
         if (!string.IsNullOrWhiteSpace(search)) activity?.SetTag("exam.search", search);
+        ExamTelemetry.ExamsQueried.Add(1);
 
         var items = exams.Select(ToExamResponse).ToList();
         var pagination = new PaginationInfo(page, pageSize, totalCount, totalPages);
@@ -91,10 +95,12 @@ public static class ExamEndpoints
         var exam = store.GetById(id);
         if (exam is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
             logger.LogWarning("Exam {ExamId} not found", id);
             return Results.NotFound();
         }
 
+        ExamTelemetry.ExamsQueried.Add(1);
         logger.LogInformation("Retrieved exam {ExamId}", id);
         return Results.Ok(ToExamResponse(exam));
     }
@@ -106,6 +112,7 @@ public static class ExamEndpoints
         var patient = patientStore.GetById(request.PatientId);
         if (patient is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Patient not found");
             logger.LogWarning("Patient {PatientId} not found when creating exam", request.PatientId);
             return Results.NotFound();
         }
@@ -115,6 +122,7 @@ public static class ExamEndpoints
             var doctor = doctorStore.GetById(request.DoctorId.Value);
             if (doctor is null)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
                 logger.LogWarning("Doctor {DoctorId} not found when creating exam", request.DoctorId);
                 return Results.NotFound();
             }
@@ -142,6 +150,7 @@ public static class ExamEndpoints
             var doctor = doctorStore.GetById(request.DoctorId.Value);
             if (doctor is null)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
                 logger.LogWarning("Doctor {DoctorId} not found when updating exam", request.DoctorId);
                 return Results.NotFound();
             }
@@ -150,6 +159,7 @@ public static class ExamEndpoints
         var exam = store.Update(id, request);
         if (exam is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
             logger.LogWarning("Exam {ExamId} not found for update", id);
             return Results.NotFound();
         }
@@ -167,6 +177,7 @@ public static class ExamEndpoints
 
         if (!store.Delete(id))
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
             logger.LogWarning("Exam {ExamId} not found for deletion", id);
             return Results.NotFound();
         }
@@ -187,6 +198,7 @@ public static class ExamEndpoints
             var doctor = doctorStore.GetById(request.DoctorId.Value);
             if (doctor is null)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
                 logger.LogWarning("Doctor {DoctorId} not found when assigning to exam {ExamId}", request.DoctorId, id);
                 return Results.NotFound();
             }
@@ -195,6 +207,7 @@ public static class ExamEndpoints
         var exam = store.AssignDoctor(id, request.DoctorId);
         if (exam is null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
             logger.LogWarning("Exam {ExamId} not found for doctor assignment", id);
             return Results.NotFound();
         }

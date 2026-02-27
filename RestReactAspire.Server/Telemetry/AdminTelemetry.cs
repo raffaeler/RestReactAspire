@@ -11,6 +11,9 @@ public static class AdminTelemetry
 
     private static readonly Meter Meter = new(SourceName);
 
+    public static readonly Counter<long> StatsQueried = Meter.CreateCounter<long>(
+        "hospital.admin.stats_queried", description: "Number of times database stats were queried");
+
     public static readonly Counter<long> DatabaseSeeded = Meter.CreateCounter<long>(
         "hospital.admin.database_seeded", description: "Number of times the database was seeded");
 
