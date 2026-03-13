@@ -69,6 +69,12 @@ public class PatientStore
         return patient;
     }
 
+    public Patient Add(Patient patient)
+    {
+        _patients.Insert(patient);
+        return patient;
+    }
+
     public Patient? Update(Guid id, UpdatePatientRequest request)
     {
         if (_patients.FindById(id) is null)
@@ -88,4 +94,8 @@ public class PatientStore
     }
 
     public bool Delete(Guid id) => _patients.Delete(id);
+
+    public int DeleteAll() => _patients.DeleteAll();
+
+    public void InsertBulk(IEnumerable<Patient> patients) => _patients.InsertBulk(patients);
 }

@@ -1,4 +1,5 @@
 using LiteDB;
+using RestReactAspire.Server.Cqrs;
 using RestReactAspire.Server.Endpoints;
 using RestReactAspire.Server.Stores;
 
@@ -22,6 +23,21 @@ builder.Services.AddSingleton<ILiteDatabase>(_ => new LiteDatabase(liteDbConnect
 builder.Services.AddSingleton<PatientStore>();
 builder.Services.AddSingleton<ExamStore>();
 builder.Services.AddSingleton<DoctorStore>();
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+builder.Services.AddSingleton<WriteCommandResultCoordinator>();
+builder.Services.AddSingleton<WriteCommandHandler>();
+
+var useInMemoryQueue = builder.Configuration.GetValue("Cqrs:UseInMemoryQueue", builder.Environment.IsEnvironment("Testing"));
+if (useInMemoryQueue)
+{
+    builder.Services.AddSingleton<IWriteCommandQueue, InMemoryWriteCommandQueue>();
+}
+else
+{
+    builder.Services.AddSingleton<RabbitMqConnectionManager>();
+    builder.Services.AddSingleton<IWriteCommandQueue, RabbitMqWriteCommandQueue>();
+    builder.Services.AddHostedService<RabbitMqWriteCommandProcessor>();
+}
 
 var app = builder.Build();
 

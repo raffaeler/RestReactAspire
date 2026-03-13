@@ -7,6 +7,7 @@ var lavinMq = builder.AddContainer("lavinmq", "cloudamqp/lavinmq")
 
 var server = builder.AddProject<Projects.RestReactAspire_Server>("server")
     .WithHttpHealthCheck("/health")
+    .WaitFor(lavinMq)
     .WithExternalHttpEndpoints();
 
 var webfrontend = builder.AddViteApp("webfrontend", "../frontend")

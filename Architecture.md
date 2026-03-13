@@ -58,12 +58,13 @@ A REST maturity constraint (Richardson Maturity Level 3). Every API response emb
 
 ### 3.3 Layered Architecture
 
-The backend follows a **two-layer** design. There is no explicit service/domain layer.
+The backend now follows a **CQRS-oriented layered design** where reads and writes are separated.
 
 | Layer | Files | Responsibility |
 |-------|-------|----------------|
 | **Presentation (Endpoints)** | `Server\Endpoints\*.cs` | HTTP mapping, response shaping, telemetry, HATEOAS link generation |
-| **Data Access (Stores)** | `Server\Stores\PatientStore.cs`, `DoctorStore.cs`, `ExamStore.cs` | CRUD, pagination, search, sorting against LiteDB |
+| **Command Layer (Write Side)** | `Server\Cqrs\*.cs` | Build write commands, enqueue to LavinMQ (RabbitMQ protocol), process queued commands, coordinate command results |
+| **Query/Data Access Layer (Read + Persistence)** | `Server\Stores\PatientStore.cs`, `DoctorStore.cs`, `ExamStore.cs` | Queries, pagination/search/sorting, persistence operations executed by command handlers |
 | **Models** | `Server\Models\*.cs` | Domain entities and DTOs (shared across layers) |
 
 ### 3.4 Client-Server Architecture
@@ -85,6 +86,21 @@ The system is divided into a backend API server and a single-page application fr
 |-------|------|---------|
 | AppHost | `AppHost\AppHost.cs` | `AddProject` (backend), `AddViteApp` (frontend), health checks, service references, container publishing |
 | Service Defaults | `Server\Extensions.cs` — `AddServiceDefaults` | Adds service discovery, HTTP resilience, OpenTelemetry, health checks |
+
+### 3.6 CQRS with Asynchronous Messaging
+
+Writes are handled as commands and queued through LavinMQ using the RabbitMQ protocol. A background processor consumes commands and applies state changes to LiteDB through stores. Reads remain direct query operations from endpoint handlers.
+
+| Where | File(s) | Details |
+|-------|---------|---------|
+| Command contracts | `Server\Cqrs\WriteCommands.cs` | Write command records + `WriteCommandEnvelope` |
+| Queue abstraction | `Server\Cqrs\IWriteCommandQueue.cs` | Endpoint write handlers depend on an abstraction |
+| RabbitMQ producer | `Server\Cqrs\RabbitMqWriteCommandQueue.cs` | Enqueues persistent messages to LavinMQ queue |
+| RabbitMQ consumer | `Server\Cqrs\RabbitMqWriteCommandProcessor.cs` | Background worker dequeues and executes commands |
+| Command execution | `Server\Cqrs\WriteCommandHandler.cs` | Applies write operations via stores |
+| Request/response sync | `Server\Cqrs\WriteCommandResultCoordinator.cs` | Correlates HTTP request with command completion |
+| Runtime registration | `Server\Program.cs` | Registers CQRS services; uses in-memory queue in `Testing` environment |
+| Aspire dependency | `AppHost\AppHost.cs` | Backend waits for `lavinmq` container before startup |
 
 ---
 
@@ -109,9 +125,9 @@ Each entity has a dedicated **Store** class that encapsulates all data access lo
 
 | Store | File | Key Methods |
 |-------|------|-------------|
-| `PatientStore` | `Server\Stores\PatientStore.cs` | `GetAll`, `GetPaged`, `SearchPaged`, `GetById`, `Add`, `Update`, `Delete` |
-| `DoctorStore` | `Server\Stores\DoctorStore.cs` | Same CRUD + search/sort surface |
-| `ExamStore` | `Server\Stores\ExamStore.cs` | Adds `GetByPatientId*`, `GetByDoctorId*`, `AssignDoctor` |
+| `PatientStore` | `Server\Stores\PatientStore.cs` | `GetAll`, `GetPaged`, `SearchPaged`, `GetById`, `Add`, `Update`, `Delete`, `InsertBulk`, `DeleteAll` |
+| `DoctorStore` | `Server\Stores\DoctorStore.cs` | Same CRUD + search/sort + bulk/reset helpers |
+| `ExamStore` | `Server\Stores\ExamStore.cs` | Adds `GetByPatientId*`, `GetByDoctorId*`, `AssignDoctor`, bulk/reset helpers |
 
 ### 4.3 Dependency Injection (IoC Container)
 
@@ -121,6 +137,7 @@ All runtime dependencies are resolved through the built-in ASP.NET Core DI conta
 |-------------|------|---------|
 | `ILiteDatabase` singleton | `Server\Program.cs` (line 19) | Single shared LiteDB instance |
 | Store singletons | `Server\Program.cs` (lines 22–24) | `PatientStore`, `ExamStore`, `DoctorStore` |
+| CQRS services | `Server\Program.cs`, `Server\Cqrs\*.cs` | `WriteCommandHandler`, `WriteCommandResultCoordinator`, queue implementation, RabbitMQ connection manager, background processor |
 | Endpoint parameter injection | `Server\Endpoints\*.cs` | Handler parameters resolved from DI (e.g., `PatientStore store`, `ILogger<PatientStore> logger`) |
 
 ### 4.4 Singleton Pattern
@@ -131,6 +148,7 @@ The embedded database and its stores use the Singleton lifecycle to ensure a sin
 |-------|------|---------|
 | `ILiteDatabase` | `Server\Program.cs` (line 19) | `Connection=shared` for concurrent access |
 | Stores | `Server\Program.cs` (lines 22–24) | Registered as singletons; hold references to the singleton DB |
+| CQRS coordinator | `Server\Program.cs`, `Server\Cqrs\WriteCommandResultCoordinator.cs` | Singleton command result correlation across request/worker boundary |
 | `LiteDbFactory._configured` | `Server\Stores\LiteDbFactory.cs` | Thread-safe one-time initialization with `lock` + boolean guard |
 
 ### 4.5 Factory Pattern
@@ -235,7 +253,7 @@ Store unit test classes implement `IDisposable` to deterministically release in-
 
 ---
 
-## 5. Patterns and Methodologies NOT Currently Used — Potential Additions
+## 5. Patterns and Methodologies: Gaps & Potential Additions
 
 ### 5.1 Domain-Driven Design (DDD) — Methodology
 
@@ -250,10 +268,11 @@ Store unit test classes implement `IDisposable` to deterministically release in-
 
 | Aspect | Description |
 |--------|-------------|
-| **What** | Separate models and code paths for reads (queries) vs. writes (commands) |
-| **Pros** | Optimises read/write sides independently; enables different storage strategies; natural fit for the existing statistics endpoints (query-only) |
-| **Cons** | Adds complexity (two models, possible eventual consistency); harder debugging; not justified when read/write shapes are identical |
-| **Where it would apply** | Statistics endpoints already operate as pure queries; separating `PatientQueryService` from `PatientCommandHandler` would formalise the split |
+| **What** | Separate code paths for reads (queries) vs. writes (commands) |
+| **Status in this solution** | **Implemented** using queued write commands through LavinMQ/RabbitMQ in `Server\Cqrs\*.cs` |
+| **Pros** | Isolates write concerns, supports asynchronous processing, and keeps read endpoints simple |
+| **Trade-offs** | Added moving parts (queue, consumer worker, command coordination) and timeout/error handling complexity |
+| **Where implemented** | Write endpoints enqueue commands; `RabbitMqWriteCommandProcessor` executes them via `WriteCommandHandler`; stores persist changes |
 
 ### 5.3 Event Sourcing — Architectural Pattern
 
@@ -389,7 +408,7 @@ Store unit test classes implement `IDisposable` to deterministically release in-
 | 18 | Template Method | Design Pattern (GoF) | ✅ Used | `Tests\TestWebApplicationFactory.cs`, `Tests\*EndpointTests.cs` |
 | 19 | Dispose | Design Pattern | ✅ Used | `Tests\*StoreTests.cs` |
 | 20 | DDD | Methodology | ❌ Not used | — |
-| 21 | CQRS | Architectural Pattern | ❌ Not used | — |
+| 21 | CQRS | Architectural Pattern | ✅ Used | `Server\Cqrs\*.cs`, `Server\Program.cs`, write handlers in `Endpoints\*.cs` |
 | 22 | Event Sourcing / Event Store | Architectural Pattern | ❌ Not used | — |
 | 23 | Cache-Aside | Design Pattern | ❌ Not used | — |
 | 24 | Mediator | Design Pattern (GoF) | ❌ Not used | — |

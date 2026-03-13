@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RestReactAspire.Server.Cqrs;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 using RestReactAspire.Server.Telemetry;
@@ -68,11 +69,44 @@ public static class DoctorEndpoints
         return Results.Ok(ToDoctorResponse(doctor));
     }
 
-    private static IResult Create(CreateDoctorRequest request, DoctorStore store, ILogger<DoctorStore> logger)
+    private static async Task<IResult> Create(
+        CreateDoctorRequest request,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        DoctorStore store,
+        ILogger<DoctorStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = DoctorTelemetry.ActivitySource.StartActivity("CreateDoctor");
 
-        var doctor = store.Add(request);
+        var doctorId = Guid.NewGuid();
+        var commandId = Guid.NewGuid();
+        var command = new CreateDoctorCommand(
+            doctorId,
+            request.FirstName,
+            request.LastName,
+            request.Specialty,
+            request.Email,
+            request.Phone);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Create doctor command failed: {ErrorCode} {ErrorMessage}", result.ErrorCode, result.ErrorMessage);
+            return Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var doctor = store.GetById(doctorId);
+        if (doctor is null)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, "Doctor not available after command processing");
+            logger.LogWarning("Doctor {DoctorId} not found after successful create command", doctorId);
+            return Results.Problem("Doctor creation did not complete in time.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
         activity?.SetTag("doctor.id", doctor.Id.ToString());
         DoctorTelemetry.DoctorsCreated.Add(1);
 
@@ -82,17 +116,52 @@ public static class DoctorEndpoints
         return Results.Created($"/api/doctors/{doctor.Id}", ToDoctorResponse(doctor));
     }
 
-    private static IResult Update(Guid id, UpdateDoctorRequest request, DoctorStore store, ILogger<DoctorStore> logger)
+    private static async Task<IResult> Update(
+        Guid id,
+        UpdateDoctorRequest request,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        DoctorStore store,
+        ILogger<DoctorStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = DoctorTelemetry.ActivitySource.StartActivity("UpdateDoctor");
         activity?.SetTag("doctor.id", id.ToString());
 
-        var doctor = store.Update(id, request);
-        if (doctor is null)
+        if (store.GetById(id) is null)
         {
             activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
             logger.LogWarning("Doctor {DoctorId} not found for update", id);
             return Results.NotFound();
+        }
+
+        var commandId = Guid.NewGuid();
+        var command = new UpdateDoctorCommand(
+            id,
+            request.FirstName,
+            request.LastName,
+            request.Specialty,
+            request.Email,
+            request.Phone);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Update doctor command failed for {DoctorId}: {ErrorCode} {ErrorMessage}", id, result.ErrorCode, result.ErrorMessage);
+            return result.ErrorCode == "DoctorNotFound"
+                ? Results.NotFound()
+                : Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var doctor = store.GetById(id);
+        if (doctor is null)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, "Doctor not available after update command");
+            logger.LogWarning("Doctor {DoctorId} not found after successful update command", id);
+            return Results.Problem("Doctor update did not complete in time.", statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         DoctorTelemetry.DoctorsUpdated.Add(1);
@@ -101,16 +170,37 @@ public static class DoctorEndpoints
         return Results.Ok(ToDoctorResponse(doctor));
     }
 
-    private static IResult Delete(Guid id, DoctorStore store, ILogger<DoctorStore> logger)
+    private static async Task<IResult> Delete(
+        Guid id,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        DoctorStore store,
+        ILogger<DoctorStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = DoctorTelemetry.ActivitySource.StartActivity("DeleteDoctor");
         activity?.SetTag("doctor.id", id.ToString());
 
-        if (!store.Delete(id))
+        if (store.GetById(id) is null)
         {
             activity?.SetStatus(ActivityStatusCode.Error, "Doctor not found");
             logger.LogWarning("Doctor {DoctorId} not found for deletion", id);
             return Results.NotFound();
+        }
+
+        var commandId = Guid.NewGuid();
+        var command = new DeleteDoctorCommand(id);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Delete doctor command failed for {DoctorId}: {ErrorCode} {ErrorMessage}", id, result.ErrorCode, result.ErrorMessage);
+            return result.ErrorCode == "DoctorNotFound"
+                ? Results.NotFound()
+                : Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         DoctorTelemetry.DoctorsDeleted.Add(1);

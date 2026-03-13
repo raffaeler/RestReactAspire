@@ -70,6 +70,12 @@ public class DoctorStore
         return doctor;
     }
 
+    public Doctor Add(Doctor doctor)
+    {
+        _doctors.Insert(doctor);
+        return doctor;
+    }
+
     public Doctor? Update(Guid id, UpdateDoctorRequest request)
     {
         if (_doctors.FindById(id) is null)
@@ -89,4 +95,8 @@ public class DoctorStore
     }
 
     public bool Delete(Guid id) => _doctors.Delete(id);
+
+    public int DeleteAll() => _doctors.DeleteAll();
+
+    public void InsertBulk(IEnumerable<Doctor> doctors) => _doctors.InsertBulk(doctors);
 }

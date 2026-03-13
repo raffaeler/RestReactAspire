@@ -127,6 +127,12 @@ public class ExamStore
         return exam;
     }
 
+    public Exam Add(Exam exam)
+    {
+        _exams.Insert(exam);
+        return exam;
+    }
+
     public Exam? Update(Guid id, UpdateExamRequest request)
     {
         var existing = _exams.FindById(id);
@@ -174,4 +180,8 @@ public class ExamStore
     }
 
     public bool Delete(Guid id) => _exams.Delete(id);
+
+    public int DeleteAll() => _exams.DeleteAll();
+
+    public void InsertBulk(IEnumerable<Exam> exams) => _exams.InsertBulk(exams);
 }

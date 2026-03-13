@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RestReactAspire.Server.Cqrs;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 using RestReactAspire.Server.Telemetry;
@@ -61,11 +62,44 @@ public static class PatientEndpoints
         return Results.Ok(ToPatientResponse(patient));
     }
 
-    private static IResult Create(CreatePatientRequest request, PatientStore store, ILogger<PatientStore> logger)
+    private static async Task<IResult> Create(
+        CreatePatientRequest request,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        PatientStore store,
+        ILogger<PatientStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = PatientTelemetry.ActivitySource.StartActivity("CreatePatient");
 
-        var patient = store.Add(request);
+        var patientId = Guid.NewGuid();
+        var commandId = Guid.NewGuid();
+        var command = new CreatePatientCommand(
+            patientId,
+            request.FirstName,
+            request.LastName,
+            request.DateOfBirth,
+            request.Email,
+            request.Phone);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Create patient command failed: {ErrorCode} {ErrorMessage}", result.ErrorCode, result.ErrorMessage);
+            return Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var patient = store.GetById(patientId);
+        if (patient is null)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, "Patient not available after command processing");
+            logger.LogWarning("Patient {PatientId} not found after successful create command", patientId);
+            return Results.Problem("Patient creation did not complete in time.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
         activity?.SetTag("patient.id", patient.Id.ToString());
         PatientTelemetry.PatientsCreated.Add(1);
 
@@ -75,17 +109,52 @@ public static class PatientEndpoints
         return Results.Created($"/api/patients/{patient.Id}", ToPatientResponse(patient));
     }
 
-    private static IResult Update(Guid id, UpdatePatientRequest request, PatientStore store, ILogger<PatientStore> logger)
+    private static async Task<IResult> Update(
+        Guid id,
+        UpdatePatientRequest request,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        PatientStore store,
+        ILogger<PatientStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = PatientTelemetry.ActivitySource.StartActivity("UpdatePatient");
         activity?.SetTag("patient.id", id.ToString());
 
-        var patient = store.Update(id, request);
-        if (patient is null)
+        if (store.GetById(id) is null)
         {
             activity?.SetStatus(ActivityStatusCode.Error, "Patient not found");
             logger.LogWarning("Patient {PatientId} not found for update", id);
             return Results.NotFound();
+        }
+
+        var commandId = Guid.NewGuid();
+        var command = new UpdatePatientCommand(
+            id,
+            request.FirstName,
+            request.LastName,
+            request.DateOfBirth,
+            request.Email,
+            request.Phone);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Update patient command failed for {PatientId}: {ErrorCode} {ErrorMessage}", id, result.ErrorCode, result.ErrorMessage);
+            return result.ErrorCode == "PatientNotFound"
+                ? Results.NotFound()
+                : Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var patient = store.GetById(id);
+        if (patient is null)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, "Patient not available after update command");
+            logger.LogWarning("Patient {PatientId} not found after successful update command", id);
+            return Results.Problem("Patient update did not complete in time.", statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         PatientTelemetry.PatientsUpdated.Add(1);
@@ -94,16 +163,37 @@ public static class PatientEndpoints
         return Results.Ok(ToPatientResponse(patient));
     }
 
-    private static IResult Delete(Guid id, PatientStore store, ILogger<PatientStore> logger)
+    private static async Task<IResult> Delete(
+        Guid id,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        PatientStore store,
+        ILogger<PatientStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = PatientTelemetry.ActivitySource.StartActivity("DeletePatient");
         activity?.SetTag("patient.id", id.ToString());
 
-        if (!store.Delete(id))
+        if (store.GetById(id) is null)
         {
             activity?.SetStatus(ActivityStatusCode.Error, "Patient not found");
             logger.LogWarning("Patient {PatientId} not found for deletion", id);
             return Results.NotFound();
+        }
+
+        var commandId = Guid.NewGuid();
+        var command = new DeletePatientCommand(id);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Delete patient command failed for {PatientId}: {ErrorCode} {ErrorMessage}", id, result.ErrorCode, result.ErrorMessage);
+            return result.ErrorCode == "PatientNotFound"
+                ? Results.NotFound()
+                : Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         PatientTelemetry.PatientsDeleted.Add(1);

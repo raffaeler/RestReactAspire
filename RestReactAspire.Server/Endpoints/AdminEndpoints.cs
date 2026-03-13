@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using LiteDB;
+using RestReactAspire.Server.Cqrs;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 using RestReactAspire.Server.Telemetry;
@@ -17,37 +18,44 @@ public static class AdminEndpoints
         return group;
     }
 
-    private static IResult Seed(ILiteDatabase database, ILogger<PatientStore> logger)
+    private static async Task<IResult> Seed(
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        ILogger<PatientStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = AdminTelemetry.ActivitySource.StartActivity("SeedDatabase");
 
         logger.LogInformation("Seeding database with sample data");
 
-        var patients = SeedDataGenerator.GeneratePatients();
-        var doctors = SeedDataGenerator.GenerateDoctors();
-        var exams = SeedDataGenerator.GenerateExams(patients, doctors);
+        var commandId = Guid.NewGuid();
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, new SeedDataCommand()), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Seed command failed: {ErrorCode} {ErrorMessage}", result.ErrorCode, result.ErrorMessage);
+            return Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
 
-        var patientCollection = database.GetCollection<Patient>("patients");
-        var doctorCollection = database.GetCollection<Doctor>("doctors");
-        var examCollection = database.GetCollection<Exam>("exams");
-
-        patientCollection.InsertBulk(patients);
-        doctorCollection.InsertBulk(doctors);
-        examCollection.InsertBulk(exams);
+        var patientsCreated = result.PatientsAffected;
+        var doctorsCreated = result.DoctorsAffected;
+        var examsCreated = result.ExamsAffected;
 
         AdminTelemetry.DatabaseSeeded.Add(1);
 
-        activity?.SetTag("admin.patients_added", patients.Count);
-        activity?.SetTag("admin.doctors_added", doctors.Count);
-        activity?.SetTag("admin.exams_added", exams.Count);
+        activity?.SetTag("admin.patients_added", patientsCreated);
+        activity?.SetTag("admin.doctors_added", doctorsCreated);
+        activity?.SetTag("admin.exams_added", examsCreated);
 
         logger.LogInformation("Database seeded with {Patients} patients, {Doctors} doctors, {Exams} exams",
-            patients.Count, doctors.Count, exams.Count);
+            patientsCreated, doctorsCreated, examsCreated);
 
         var response = new SeedResponse(
-            patients.Count,
-            doctors.Count,
-            exams.Count,
+            patientsCreated,
+            doctorsCreated,
+            examsCreated,
             [
                 new Link("self", "/api/admin/seed", "POST"),
                 new Link("reset", "/api/admin/reset", "POST"),
@@ -60,19 +68,30 @@ public static class AdminEndpoints
         return Results.Ok(response);
     }
 
-    private static IResult Reset(ILiteDatabase database, ILogger<PatientStore> logger)
+    private static async Task<IResult> Reset(
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        ILogger<PatientStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = AdminTelemetry.ActivitySource.StartActivity("ResetDatabase");
 
         logger.LogInformation("Resetting database");
 
-        var patientCollection = database.GetCollection<Patient>("patients");
-        var doctorCollection = database.GetCollection<Doctor>("doctors");
-        var examCollection = database.GetCollection<Exam>("exams");
+        var commandId = Guid.NewGuid();
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, new ResetDataCommand()), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Reset command failed: {ErrorCode} {ErrorMessage}", result.ErrorCode, result.ErrorMessage);
+            return Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
 
-        var deletedPatients = patientCollection.DeleteAll();
-        var deletedDoctors = doctorCollection.DeleteAll();
-        var deletedExams = examCollection.DeleteAll();
+        var deletedPatients = result.PatientsAffected;
+        var deletedDoctors = result.DoctorsAffected;
+        var deletedExams = result.ExamsAffected;
 
         AdminTelemetry.DatabaseReset.Add(1);
 

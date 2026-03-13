@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RestReactAspire.Server.Cqrs;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Stores;
 using RestReactAspire.Server.Telemetry;
@@ -105,7 +106,15 @@ public static class ExamEndpoints
         return Results.Ok(ToExamResponse(exam));
     }
 
-    private static IResult Create(CreateExamRequest request, ExamStore store, PatientStore patientStore, DoctorStore doctorStore, ILogger<ExamStore> logger)
+    private static async Task<IResult> Create(
+        CreateExamRequest request,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        ExamStore store,
+        PatientStore patientStore,
+        DoctorStore doctorStore,
+        ILogger<ExamStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = ExamTelemetry.ActivitySource.StartActivity("CreateExam");
 
@@ -128,7 +137,43 @@ public static class ExamEndpoints
             }
         }
 
-        var exam = store.Add(request);
+        var examId = Guid.NewGuid();
+        var commandId = Guid.NewGuid();
+        var command = new CreateExamCommand(
+            examId,
+            request.PatientId,
+            request.DoctorId,
+            request.Type,
+            request.ScheduledDate,
+            request.ScheduledTime,
+            request.DurationMinutes,
+            request.Status,
+            request.Results,
+            request.Notes);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Create exam command failed: {ErrorCode} {ErrorMessage}", result.ErrorCode, result.ErrorMessage);
+            return result.ErrorCode switch
+            {
+                "PatientNotFound" => Results.NotFound(),
+                "DoctorNotFound" => Results.NotFound(),
+                _ => Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable)
+            };
+        }
+
+        var exam = store.GetById(examId);
+        if (exam is null)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not available after command processing");
+            logger.LogWarning("Exam {ExamId} not found after successful create command", examId);
+            return Results.Problem("Exam creation did not complete in time.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
         activity?.SetTag("exam.id", exam.Id.ToString());
         activity?.SetTag("patient.id", exam.PatientId.ToString());
         if (exam.DoctorId.HasValue) activity?.SetTag("doctor.id", exam.DoctorId.Value.ToString());
@@ -140,10 +185,25 @@ public static class ExamEndpoints
         return Results.Created($"/api/exams/{exam.Id}", ToExamResponse(exam));
     }
 
-    private static IResult Update(Guid id, UpdateExamRequest request, ExamStore store, DoctorStore doctorStore, ILogger<ExamStore> logger)
+    private static async Task<IResult> Update(
+        Guid id,
+        UpdateExamRequest request,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        ExamStore store,
+        DoctorStore doctorStore,
+        ILogger<ExamStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = ExamTelemetry.ActivitySource.StartActivity("UpdateExam");
         activity?.SetTag("exam.id", id.ToString());
+
+        if (store.GetById(id) is null)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
+            logger.LogWarning("Exam {ExamId} not found for update", id);
+            return Results.NotFound();
+        }
 
         if (request.DoctorId.HasValue)
         {
@@ -156,12 +216,39 @@ public static class ExamEndpoints
             }
         }
 
-        var exam = store.Update(id, request);
+        var commandId = Guid.NewGuid();
+        var command = new UpdateExamCommand(
+            id,
+            request.DoctorId,
+            request.Type,
+            request.ScheduledDate,
+            request.ScheduledTime,
+            request.DurationMinutes,
+            request.Status,
+            request.Results,
+            request.Notes);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Update exam command failed for {ExamId}: {ErrorCode} {ErrorMessage}", id, result.ErrorCode, result.ErrorMessage);
+            return result.ErrorCode switch
+            {
+                "ExamNotFound" => Results.NotFound(),
+                "DoctorNotFound" => Results.NotFound(),
+                _ => Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable)
+            };
+        }
+
+        var exam = store.GetById(id);
         if (exam is null)
         {
-            activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
-            logger.LogWarning("Exam {ExamId} not found for update", id);
-            return Results.NotFound();
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not available after update command");
+            logger.LogWarning("Exam {ExamId} not found after successful update command", id);
+            return Results.Problem("Exam update did not complete in time.", statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         ExamTelemetry.ExamsUpdated.Add(1);
@@ -170,16 +257,37 @@ public static class ExamEndpoints
         return Results.Ok(ToExamResponse(exam));
     }
 
-    private static IResult Delete(Guid id, ExamStore store, ILogger<ExamStore> logger)
+    private static async Task<IResult> Delete(
+        Guid id,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        ExamStore store,
+        ILogger<ExamStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = ExamTelemetry.ActivitySource.StartActivity("DeleteExam");
         activity?.SetTag("exam.id", id.ToString());
 
-        if (!store.Delete(id))
+        if (store.GetById(id) is null)
         {
             activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
             logger.LogWarning("Exam {ExamId} not found for deletion", id);
             return Results.NotFound();
+        }
+
+        var commandId = Guid.NewGuid();
+        var command = new DeleteExamCommand(id);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Delete exam command failed for {ExamId}: {ErrorCode} {ErrorMessage}", id, result.ErrorCode, result.ErrorMessage);
+            return result.ErrorCode == "ExamNotFound"
+                ? Results.NotFound()
+                : Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         ExamTelemetry.ExamsDeleted.Add(1);
@@ -188,10 +296,25 @@ public static class ExamEndpoints
         return Results.NoContent();
     }
 
-    private static IResult AssignDoctor(Guid id, AssignDoctorRequest request, ExamStore store, DoctorStore doctorStore, ILogger<ExamStore> logger)
+    private static async Task<IResult> AssignDoctor(
+        Guid id,
+        AssignDoctorRequest request,
+        IWriteCommandQueue writeQueue,
+        WriteCommandResultCoordinator resultCoordinator,
+        ExamStore store,
+        DoctorStore doctorStore,
+        ILogger<ExamStore> logger,
+        CancellationToken cancellationToken)
     {
         using var activity = ExamTelemetry.ActivitySource.StartActivity("AssignDoctorToExam");
         activity?.SetTag("exam.id", id.ToString());
+
+        if (store.GetById(id) is null)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
+            logger.LogWarning("Exam {ExamId} not found for doctor assignment", id);
+            return Results.NotFound();
+        }
 
         if (request.DoctorId.HasValue)
         {
@@ -204,12 +327,30 @@ public static class ExamEndpoints
             }
         }
 
-        var exam = store.AssignDoctor(id, request.DoctorId);
+        var commandId = Guid.NewGuid();
+        var command = new AssignDoctorToExamCommand(id, request.DoctorId);
+
+        resultCoordinator.Prepare(commandId);
+        await writeQueue.EnqueueAsync(WriteCommandEnvelope.Create(commandId, command), cancellationToken);
+        var result = await resultCoordinator.WaitAsync(commandId, cancellationToken);
+        if (!result.Succeeded)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+            logger.LogWarning("Assign doctor command failed for {ExamId}: {ErrorCode} {ErrorMessage}", id, result.ErrorCode, result.ErrorMessage);
+            return result.ErrorCode switch
+            {
+                "ExamNotFound" => Results.NotFound(),
+                "DoctorNotFound" => Results.NotFound(),
+                _ => Results.Problem(result.ErrorMessage, statusCode: StatusCodes.Status503ServiceUnavailable)
+            };
+        }
+
+        var exam = store.GetById(id);
         if (exam is null)
         {
-            activity?.SetStatus(ActivityStatusCode.Error, "Exam not found");
-            logger.LogWarning("Exam {ExamId} not found for doctor assignment", id);
-            return Results.NotFound();
+            activity?.SetStatus(ActivityStatusCode.Error, "Exam not available after assignment command");
+            logger.LogWarning("Exam {ExamId} not found after successful doctor assignment command", id);
+            return Results.Problem("Doctor assignment did not complete in time.", statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         ExamTelemetry.ExamsUpdated.Add(1);
