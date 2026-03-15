@@ -2,6 +2,7 @@ using LiteDB;
 using RestReactAspire.Server.Cqrs;
 using RestReactAspire.Server.Endpoints;
 using RestReactAspire.Server.Stores;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +48,8 @@ app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
+    app.MapGet("/", () => Results.Redirect("/scalar/v1", permanent: false));
 }
 
 var api = app.MapGroup("/api");
