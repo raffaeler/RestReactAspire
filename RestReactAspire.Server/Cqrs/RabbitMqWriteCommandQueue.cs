@@ -18,18 +18,34 @@ public sealed class RabbitMqWriteCommandQueue : IWriteCommandQueue
 
     public Task EnqueueAsync(WriteCommandEnvelope command, CancellationToken cancellationToken = default)
     {
+        return EnqueueCoreAsync(command, cancellationToken);
+    }
+
+    private async Task EnqueueCoreAsync(WriteCommandEnvelope command, CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
         var payload = JsonSerializer.Serialize(command);
         var body = Encoding.UTF8.GetBytes(payload);
 
-        using var channel = _connectionManager.GetConnection().CreateModel();
-        channel.QueueDeclare(_options.QueueName, durable: true, exclusive: false, autoDelete: false, arguments: null);
+        using var channel = await _connectionManager.GetConnection()
+            .CreateChannelAsync(options: default, cancellationToken: cancellationToken);
+        await channel.QueueDeclareAsync(
+            _options.QueueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: null,
+            passive: false,
+            noWait: false,
+            cancellationToken: cancellationToken);
 
-        var properties = channel.CreateBasicProperties();
-        properties.Persistent = true;
-
-        channel.BasicPublish(exchange: string.Empty, routingKey: _options.QueueName, basicProperties: properties, body: body);
-        return Task.CompletedTask;
+        await channel.BasicPublishAsync(
+            exchange: string.Empty,
+            routingKey: _options.QueueName,
+            mandatory: false,
+            basicProperties: new BasicProperties { Persistent = true },
+            body: body,
+            cancellationToken: cancellationToken);
     }
 }

@@ -31,10 +31,9 @@ public sealed class RabbitMqConnectionManager : IDisposable
                 UserName = _options.UserName,
                 Password = _options.Password,
                 VirtualHost = _options.VirtualHost,
-                DispatchConsumersAsync = false,
             };
 
-            _connection = factory.CreateConnection();
+            _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
             return _connection;
         }
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Paper, Box, Button, Alert, CircularProgress, Chip,
   MenuItem, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -25,7 +25,7 @@ export default function ExamDetailPage() {
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [assigning, setAssigning] = useState(false);
 
-  const fetchExam = async () => {
+  const fetchExam = useCallback(async () => {
     try {
       const data = await apiClient.get<Exam>(`/api/exams/${id}`);
       setExam(data);
@@ -48,9 +48,9 @@ export default function ExamDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchExam(); }, [id]);
+  useEffect(() => { fetchExam(); }, [fetchExam]);
 
   const handleOpenAssign = async () => {
     try {

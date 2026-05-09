@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   LineChart, Line,
 } from 'recharts';
+import type { XAxisTickContentProps } from 'recharts';
 import { apiClient } from '../api/apiClient';
 import type {
   PatientsByAgeGroupResponse,
@@ -18,6 +19,31 @@ import type {
 const PIE_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#d0ed57'];
 const LINE_COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088FE', '#00C49F', '#FFBB28', '#FF8042',
   '#d0ed57', '#a4de6c', '#d88884', '#84d8d8', '#c49f00', '#8042ff', '#42ff80'];
+
+function DoctorAxisTick({ x, y, payload }: XAxisTickContentProps) {
+  if (typeof x !== 'number' || typeof y !== 'number' || !payload?.value) {
+    return null;
+  }
+
+  return (
+    <text x={x} y={y + 8} textAnchor="end" fontSize={10} transform={`rotate(-45, ${x}, ${y + 8})`}>
+      {String(payload.value)}
+    </text>
+  );
+}
+
+function examsPerDoctorTooltipFormatter(
+  value: number | string | ReadonlyArray<number | string> | undefined,
+  _name: string | number | undefined,
+  item: { payload?: Record<string, unknown> },
+): [string, string] {
+  const examCount = typeof value === 'number' ? value : Number(value ?? 0);
+  const specialty = typeof item?.payload === 'object' && item.payload && 'specialty' in item.payload
+    ? String(item.payload.specialty)
+    : 'Specialty';
+
+  return [`${examCount} exams`, specialty];
+}
 
 export default function StatisticsPage() {
   const [ageGroupData, setAgeGroupData] = useState<PatientsByAgeGroupResponse | null>(null);
@@ -106,7 +132,7 @@ export default function StatisticsPage() {
                     cx="50%"
                     cy="50%"
                     outerRadius={120}
-                    label={({ ageGroup, count }) => `${ageGroup}: ${count}`}
+                    label={({ name, value }) => `${String(name ?? '')}: ${value ?? 0}`}
                   >
                     {ageGroupData.items.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
@@ -134,17 +160,10 @@ export default function StatisticsPage() {
                     dataKey="doctorName"
                     interval={0}
                     height={100}
-                    tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => (
-                      <text x={x} y={y + 8} textAnchor="end" fontSize={10} transform={`rotate(-45, ${x}, ${y + 8})`}>
-                        {payload.value}
-                      </text>
-                    )}
+                    tick={DoctorAxisTick}
                   />
                   <YAxis allowDecimals={false} />
-                  <Tooltip
-                    formatter={(value: number, _name: string, props: { payload: { specialty: string } }) =>
-                      [`${value} exams`, props.payload.specialty]}
-                  />
+                  <Tooltip formatter={examsPerDoctorTooltipFormatter} />
                   <Bar dataKey="examCount" fill="#1976d2" name="Exams" />
                 </BarChart>
               </ResponsiveContainer>

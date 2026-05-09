@@ -32,12 +32,21 @@ public sealed class RabbitMqWriteCommandProcessor : BackgroundService
         {
             try
             {
-                using var channel = _connectionManager.GetConnection().CreateModel();
-                channel.QueueDeclare(_options.QueueName, durable: true, exclusive: false, autoDelete: false, arguments: null);
+                using var channel = await _connectionManager.GetConnection()
+                    .CreateChannelAsync(options: default, cancellationToken: stoppingToken);
+                await channel.QueueDeclareAsync(
+                    _options.QueueName,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
+                    arguments: null,
+                    passive: false,
+                    noWait: false,
+                    cancellationToken: stoppingToken);
 
                 while (!stoppingToken.IsCancellationRequested)
                 {
-                    var delivery = channel.BasicGet(_options.QueueName, autoAck: true);
+                    var delivery = await channel.BasicGetAsync(_options.QueueName, autoAck: true, cancellationToken: stoppingToken);
                     if (delivery is null)
                     {
                         await Task.Delay(100, stoppingToken);
