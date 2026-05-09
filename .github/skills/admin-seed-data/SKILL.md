@@ -3,30 +3,37 @@ name: Admin and Seed Data
 description: Manage database seeding, reset operations, and the admin interface.
 globs:
   - "RestReactAspire.Server/Endpoints/AdminEndpoints.cs"
-  - "RestReactAspire.Server/Stores/SeedDataGenerator.cs"
-  - "RestReactAspire.Server/Telemetry/AdminTelemetry.cs"
-  - "RestReactAspire.Server/Models/AdminDto.cs"
+  - "RestReactAspire.Shared/Stores/SeedDataGenerator.cs"
+  - "RestReactAspire.Shared/Models/AdminDto.cs"
   - "frontend/src/pages/AdminPage.tsx"
 ---
 
 # Admin and Seed Data
 
+## Gateway Fan-Out Pattern
+Admin endpoints (`/api/admin/seed`, `/api/admin/reset`, `/api/admin/stats`) are handled by the **YARP gateway using a fan-out pattern**:
+- The gateway receives the request and fans it out to all microservices.
+- **Seed must be sequential**: patients and doctors seeded first (in parallel), then exams (which reference both), then statistics (which queries all three). This ensures referential integrity.
+- **Deterministic IDs**: `SeedDataGenerator` uses fixed `Random` seeds (42, 123, 999). All services call the same generator methods, producing identical GUIDs. This is how the ExamService stiches exams to the correct patient and doctor IDs without cross-service calls.
+- Each service seeds/resets/queries its own database independently.
+- The gateway aggregates responses and returns a combined result to the client.
+
 ## Admin API Endpoints
-Located in `RestReactAspire.Server/Endpoints/AdminEndpoints.cs`, registered under `/api/admin`.
+Served by the gateway, registered under `/api/admin`.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/seed` | POST | Populates database with sample data (additive) |
-| `/reset` | POST | Deletes all data from all collections |
-| `/stats` | GET | Returns current count of patients, doctors, exams |
+| `/seed` | POST | Fans out seed to all services; aggregates results |
+| `/reset` | POST | Fans out reset to all services; aggregates results |
+| `/stats` | GET | Queries all services for counts; aggregates results |
 
-### Response DTOs (`AdminDto.cs`)
+### Response DTOs (`RestReactAspire.Shared/Models/AdminDto.cs`)
 - `SeedResponse(int PatientsCreated, int DoctorsCreated, int ExamsCreated, Links)`
 - `ResetResponse(int PatientsDeleted, int DoctorsDeleted, int ExamsDeleted, Links)`
 - `StatsResponse(int PatientCount, int DoctorCount, int ExamCount, Links)`
 
 ## Seed Data Generator
-Located in `RestReactAspire.Server/Stores/SeedDataGenerator.cs`.
+Located in `RestReactAspire.Shared/Stores/SeedDataGenerator.cs`. Each microservice calls the shared generator to populate its own database with the relevant entity subset.
 
 ### Current Data Volumes
 - **100 patients** — random Italian names, varied dates of birth, email, phone

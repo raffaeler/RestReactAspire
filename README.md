@@ -6,9 +6,27 @@ This is a demo project showing how to build an application step-by-step using As
 
 A day-hospital system for managing patients, doctors, and medical exams. Features include CRUD operations, server-side pagination/search/sorting, statistics dashboards, seed data management, and full Open Telemetry observability.
 
+## Architecture
+
+The solution follows a **microservices architecture** orchestrated by .NET Aspire:
+
+| Project | Role |
+|---------|------|
+| `RestReactAspire.AppHost` | .NET Aspire orchestrator for all services |
+| `RestReactAspire.Server` | YARP reverse proxy gateway (no database, no stores) |
+| `RestReactAspire.Shared` | Shared library (models, DTOs, CQRS abstractions, telemetry, stores) |
+| `RestReactAspire.PatientService` | Patient microservice (own DB, CQRS, telemetry) |
+| `RestReactAspire.DoctorService` | Doctor microservice (own DB, CQRS, telemetry) |
+| `RestReactAspire.ExamService` | Exam microservice (own DB, CQRS, telemetry) |
+| `RestReactAspire.StatisticsService` | Statistics microservice (own DB, read-optimised) |
+| `RestReactAspire.Server.Tests` | xUnit integration tests |
+| `frontend/` | React 19 SPA |
+
+Each microservice owns its own LiteDB database, CQRS pipeline, and telemetry instrumentation. The Server acts as a YARP gateway routing requests to the appropriate service.
+
 ## Technology Stack
 
-- Backend: .NET 10, ASP.NET Core Minimal APIs, LiteDB, OpenTelemetry, RabbitMQ
+- Backend: .NET 10, ASP.NET Core Minimal APIs, YARP, LiteDB, OpenTelemetry, LavinMQ (RabbitMQ)
 - Frontend: React 19, TypeScript, MUI v7, React Router v7, recharts, Vite
 - Orchestration: .NET Aspire
 

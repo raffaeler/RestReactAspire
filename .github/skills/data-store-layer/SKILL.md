@@ -2,18 +2,20 @@
 name: Data Store Layer
 description: Create or modify LiteDB data stores with pagination, search, and sorting support.
 globs:
-  - "RestReactAspire.Server/Stores/**"
+  - "**/Stores/**"
 ---
 
 # Data Store Layer
 
 ## Technology
 - Uses **LiteDB** (embedded NoSQL database) via the `ILiteDatabase` interface.
-- Connection string configured in `Program.cs` with `Connection=shared` mode.
-- Custom serializers for `DateOnly` and `TimeOnly` are registered in `LiteDbFactory.ConfigureMapper()`.
+- **Each microservice has its own LiteDB database file and its own stores.** No shared database.
+- Connection string configured in each service's `Program.cs` with `Connection=shared` mode.
+- Custom serializers for `DateOnly` and `TimeOnly` are registered in `RestReactAspire.Shared/Stores/LiteDbFactory.ConfigureMapper()`.
+- Store classes (`PatientStore`, `DoctorStore`, `ExamStore`) are standalone classes in `RestReactAspire.Shared/Stores/`. Each service registers only the store(s) it needs.
 
 ## Store Pattern
-Each entity has a `{Entity}Store` class in `RestReactAspire.Server/Stores/`:
+Each entity has a `{Entity}Store` class in its respective microservice (e.g., `PatientStore` in PatientService), extending the shared `BaseStore<T>`:
 
 ```csharp
 public class {Entity}Store
@@ -51,7 +53,8 @@ public class {Entity}Store
 ```
 
 ## Registration
-- Stores are registered as `AddSingleton<{Entity}Store>()` in `Program.cs`.
+- Stores are registered as `AddSingleton<{Entity}Store>()` in each microservice's `Program.cs`.
+- Each service creates its own `ILiteDatabase` singleton pointing to a service-specific database file (e.g., `Filename=patients.db;Connection=shared`).
 
 ## Seed Data
 - `SeedDataGenerator` is a static class that generates meaningful test data.

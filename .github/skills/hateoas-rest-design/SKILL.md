@@ -2,8 +2,8 @@
 name: HATEOAS REST Design
 description: Ensure all APIs follow HATEOAS REST principles with proper link relations, HTTP methods, and status codes.
 globs:
-  - "RestReactAspire.Server/Endpoints/**"
-  - "RestReactAspire.Server/Models/Link.cs"
+  - "**/Endpoints/**"
+  - "RestReactAspire.Shared/Models/Link.cs"
   - "frontend/src/api/apiClient.ts"
   - "frontend/src/types/hateoas.ts"
 ---
@@ -15,6 +15,8 @@ This project strictly follows **HATEOAS (Hypermedia as the Engine of Application
 - Clients discover available actions through links embedded in API responses.
 - No URL is hard-coded on the client side (except the initial `GET /api` entry point).
 - Every response includes navigational `links` describing what the client can do next.
+- **All HATEOAS links point to the gateway URL** (e.g., `http://localhost:5000/api/patients`). The gateway routes to the appropriate microservice transparently.
+- Microservices generate links using the gateway's base URL, ensuring the client never needs to know about internal service addresses.
 
 ## Link Structure
 ```csharp
@@ -25,9 +27,9 @@ public record Link(string Rel, string Href, string Method);
 - `Method`: HTTP method to use (`GET`, `POST`, `PUT`, `DELETE`).
 
 ## API Root (`GET /api`)
-- Entry point for API discovery.
-- Returns all available top-level link relations.
-- When adding a new feature, register its link relations here in `RootEndpoints.cs`.
+- Entry point for API discovery, served by the gateway.
+- Returns all available top-level link relations pointing to gateway URLs.
+- When adding a new microservice feature, register its link relations in the gateway's root endpoint.
 
 ## HTTP Methods & Status Codes
 | Operation | Method | Success Code | Notes |

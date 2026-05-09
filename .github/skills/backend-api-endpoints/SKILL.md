@@ -2,7 +2,7 @@
 name: Backend API Endpoints
 description: Create or modify Minimal API endpoints following the project's HATEOAS REST patterns with pagination, search, and sorting.
 globs:
-  - "RestReactAspire.Server/Endpoints/**"
+  - "**/Endpoints/**"
   - "RestReactAspire.Server/Program.cs"
 ---
 
@@ -10,8 +10,15 @@ globs:
 
 ## Architecture
 - Uses **ASP.NET Core Minimal APIs** with `RouteGroupBuilder` extension methods.
-- All endpoints are registered in `Program.cs` under the `/api` route group.
-- Each entity has its own static class in `RestReactAspire.Server/Endpoints/` (e.g., `PatientEndpoints.cs`).
+- Endpoints now live in individual microservices (**PatientService**, **DoctorService**, **ExamService**, **StatisticsService**), not in the Server.
+- Each service registers its own endpoints in its `Program.cs` under the appropriate route group (e.g., `/api/patients`).
+- The **Server** is a YARP reverse proxy gateway that routes requests to the correct microservice.
+- The API root discovery endpoint (`GET /api`) is served by the gateway.
+
+## CQRS Pipeline per Service
+- Each microservice has its **own CQRS pipeline**: its own `WriteCommandHandler`, `InMemoryWriteCommandQueue`, and `RabbitMqWriteCommandProcessor`.
+- **RabbitMQ queues must be unique per service** (e.g., `hospital.patient.write.commands`, `hospital.doctor.write.commands`). Configure via `appsettings.json` → `RabbitMq:QueueName`. Shared queue names cause cross-service message consumption and `TaskCanceledException`.
+- The shared library provides abstractions (`IWriteCommandQueue`, `WriteCommandResultCoordinator`, `WriteCommandEnvelope`) but each service implements its own concrete handler and processor.
 
 ## Endpoint Registration Pattern
 ```csharp
@@ -55,5 +62,5 @@ api.MapGroup("{route}").Map{Entity}Endpoints();
 - Set `ActivityStatusCode.Error` and log warnings on failures.
 
 ## Root Endpoint
-- `RootEndpoints.cs` exposes `GET /api` returning all discoverable link relations.
-- When adding new endpoint groups, register their discovery links in the root response.
+- The gateway serves `GET /api` returning all discoverable link relations, pointing to gateway URLs.
+- When adding new endpoint groups in a microservice, register their discovery links in the gateway's root response.

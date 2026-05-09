@@ -6,4 +6,9 @@
   <Project Path="RestReactAspire.AppHost/RestReactAspire.AppHost.csproj" />
   <Project Path="RestReactAspire.Server.Tests/RestReactAspire.Server.Tests.csproj" Id="a0704da3-8fde-4f26-8b78-58267a66d2d4" />
   <Project Path="RestReactAspire.Server/RestReactAspire.Server.csproj" />
+  <Project Path="RestReactAspire.Shared/RestReactAspire.Shared.csproj" />
+  <Project Path="RestReactAspire.StatisticsService/RestReactAspire.StatisticsService.csproj" />
+  <Project Path="RestReactAspire.PatientService/RestReactAspire.PatientService.csproj" />
+  <Project Path="RestReactAspire.DoctorService/RestReactAspire.DoctorService.csproj" />
+  <Project Path="RestReactAspire.ExamService/RestReactAspire.ExamService.csproj" />
 </Solution>

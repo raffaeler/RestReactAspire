@@ -1,5 +1,5 @@
-using RestReactAspire.Server.Models;
-using RestReactAspire.Server.Telemetry;
+using RestReactAspire.Shared.Models;
+using RestReactAspire.Shared.Telemetry;
 
 namespace RestReactAspire.Server.Endpoints;
 
@@ -12,7 +12,7 @@ public static class RootEndpoints
             using var activity = RootTelemetry.ActivitySource.StartActivity("GetApiRoot");
 
             logger.LogInformation("API root requested");
-            RootTelemetry.RootRequested.Add(1);
+            RootTelemetry.ApiRootQueried.Add(1);
 
             var response = new ApiRootResponse([
                 new Link("self", "/api", "GET"),

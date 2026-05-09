@@ -2,9 +2,9 @@
 name: Pagination Search and Sorting
 description: Implement server-side pagination, search filtering, and column sorting across API endpoints and frontend list pages.
 globs:
-  - "RestReactAspire.Server/Stores/**"
-  - "RestReactAspire.Server/Endpoints/**"
-  - "RestReactAspire.Server/Models/Link.cs"
+  - "**/Stores/**"
+  - "**/Endpoints/**"
+  - "RestReactAspire.Shared/Models/Link.cs"
   - "frontend/src/pages/*ListPage.tsx"
 ---
 

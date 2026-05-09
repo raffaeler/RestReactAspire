@@ -10,6 +10,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RestReactAspire.Server\RestReactAspire.Server.csproj" />
+    <ProjectReference Include="..\RestReactAspire.PatientService\RestReactAspire.PatientService.csproj" />
+    <ProjectReference Include="..\RestReactAspire.DoctorService\RestReactAspire.DoctorService.csproj" />
+    <ProjectReference Include="..\RestReactAspire.ExamService\RestReactAspire.ExamService.csproj" />
+    <ProjectReference Include="..\RestReactAspire.StatisticsService\RestReactAspire.StatisticsService.csproj" />
   </ItemGroup>
 
   <ItemGroup>

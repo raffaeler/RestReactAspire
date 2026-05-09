@@ -2,25 +2,28 @@
 name: LiteDB Configuration
 description: Configure LiteDB custom type serializers and manage database schema for the embedded NoSQL store.
 globs:
-  - "RestReactAspire.Server/Stores/LiteDbFactory.cs"
-  - "RestReactAspire.Server/Program.cs"
+  - "RestReactAspire.Shared/Stores/LiteDbFactory.cs"
+  - "**/Program.cs"
 ---
 
 # LiteDB Configuration
 
 ## Overview
-This project uses **LiteDB** as an embedded NoSQL document database to keep the solution simple and self-contained, avoiding schema migrations.
+This project uses **LiteDB** as an embedded NoSQL document database to keep the solution simple and self-contained, avoiding schema migrations. **Each microservice owns its own LiteDB database file.**
+
+## LiteDbFactory in Shared Library
+The `LiteDbFactory.ConfigureMapper()` method lives in `RestReactAspire.Shared/Stores/LiteDbFactory.cs` and is called by every microservice at startup before creating its database instance.
 
 ## Connection String
-Configured in `Program.cs`:
+Configured in each microservice's `Program.cs`:
 ```csharp
 var liteDbConnectionString = builder.Configuration.GetConnectionString("LiteDb")
-    ?? "Filename=hospital.db;Connection=shared";
+    ?? "Filename={serviceName}.db;Connection=shared";
 builder.Services.AddSingleton<ILiteDatabase>(_ => new LiteDatabase(liteDbConnectionString));
 ```
 
 ## Custom Type Serializers
-LiteDB does not natively support `DateOnly` and `TimeOnly`. Custom serializers are registered in `LiteDbFactory.ConfigureMapper()`:
+LiteDB does not natively support `DateOnly` and `TimeOnly`. Custom serializers are registered in `RestReactAspire.Shared/Stores/LiteDbFactory.ConfigureMapper()`:
 
 ```csharp
 BsonMapper.Global.RegisterType(
@@ -52,6 +55,6 @@ Tests use in-memory LiteDB: `new LiteDatabase(":memory:")`.
 Always call `LiteDbFactory.ConfigureMapper()` before creating any database instance (including in tests).
 
 ## Adding New Types Requiring Custom Serialization
-1. Register the serializer in `LiteDbFactory.ConfigureMapper()`.
+1. Register the serializer in `RestReactAspire.Shared/Stores/LiteDbFactory.ConfigureMapper()`.
 2. Add the pre-warm call for any new entity type.
-3. Ensure `ConfigureMapper()` is called before database creation in both production and test code.
+3. Ensure `ConfigureMapper()` is called before database creation in every microservice and test code.

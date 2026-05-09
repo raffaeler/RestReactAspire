@@ -2,23 +2,25 @@
 name: Telemetry and Observability
 description: Add or modify OpenTelemetry instrumentation (Traces, Metrics, Logs) for API endpoints.
 globs:
-  - "RestReactAspire.Server/Telemetry/**"
-  - "RestReactAspire.Server/Extensions.cs"
+  - "RestReactAspire.Shared/Telemetry/**"
+  - "RestReactAspire.Shared/Extensions.cs"
+  - "**/Telemetry/**"
 ---
 
 # Telemetry and Observability
 
 ## Framework
 - Uses **OpenTelemetry** for distributed tracing, metrics, and structured logging.
-- Configured in `Extensions.cs` via `ConfigureOpenTelemetry()`.
+- Configured in `RestReactAspire.Shared/Extensions.cs` via `ConfigureOpenTelemetry()`, shared across all services.
+- Each microservice registers its own telemetry sources and meters.
 
 ## Telemetry Class Pattern
-Each entity/feature has a static telemetry class in `RestReactAspire.Server/Telemetry/`:
+Each entity/feature in each microservice has a static telemetry class in `{Service}/Telemetry/`:
 
 ```csharp
 public static class {Entity}Telemetry
 {
-    public const string SourceName = "RestReactAspire.Server.{Entity}s";
+    public const string SourceName = "RestReactAspire.{Service}.{Entity}s";
 
     public static readonly ActivitySource ActivitySource = new(SourceName);
 
@@ -35,9 +37,10 @@ public static class {Entity}Telemetry
 ```
 
 ## Registration Requirements
-When adding a new telemetry class:
-1. Add `.AddMeter({Entity}Telemetry.SourceName)` to the metrics configuration in `Extensions.cs`.
-2. Add `.AddSource({Entity}Telemetry.SourceName)` to the tracing configuration in `Extensions.cs`.
+When adding a new telemetry class in a microservice:
+1. Add `.AddMeter({Entity}Telemetry.SourceName)` to the metrics configuration in the service's setup.
+2. Add `.AddSource({Entity}Telemetry.SourceName)` to the tracing configuration.
+3. Shared primitives are in `RestReactAspire.Shared/Telemetry/`.
 
 ## Usage in Endpoints
 Every endpoint method must:
@@ -48,9 +51,9 @@ Every endpoint method must:
 5. On errors, set status: `activity?.SetStatus(ActivityStatusCode.Error, "message");` and log warnings.
 
 ## Existing Telemetry Classes
-- `PatientTelemetry` — SourceName: `RestReactAspire.Server.Patients`
-- `ExamTelemetry` — SourceName: `RestReactAspire.Server.Exams`
-- `DoctorTelemetry` — SourceName: `RestReactAspire.Server.Doctors`
-- `AdminTelemetry` — SourceName: `RestReactAspire.Server.Admin`
-- `RootTelemetry` — SourceName: `RestReactAspire.Server.Root`
-- `StatisticsTelemetry` — SourceName: `RestReactAspire.Server.Statistics`
+- `PatientTelemetry` — SourceName: `RestReactAspire.PatientService.Patients`
+- `ExamTelemetry` — SourceName: `RestReactAspire.ExamService.Exams`
+- `DoctorTelemetry` — SourceName: `RestReactAspire.DoctorService.Doctors`
+- `AdminTelemetry` — Gateway admin telemetry
+- `RootTelemetry` — Gateway root telemetry
+- `StatisticsTelemetry` — SourceName: `RestReactAspire.StatisticsService.Statistics`

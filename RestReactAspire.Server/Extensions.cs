@@ -7,7 +7,7 @@ using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using RestReactAspire.Server.Telemetry;
+using RestReactAspire.Shared.Telemetry;
 
 namespace Microsoft.Extensions.Hosting;
 
