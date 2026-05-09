@@ -1,7 +1,7 @@
 using LiteDB;
-using RestReactAspire.Shared.Cqrs;
-using RestReactAspire.Shared.Stores;
+using RestReactAspire.Infrastructure.Cqrs;
 using RestReactAspire.StatisticsService;
+using RestReactAspire.StatisticsService.Stores;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,15 +14,25 @@ LiteDbFactory.ConfigureMapper();
 var liteDbConnectionString = builder.Configuration.GetConnectionString("LiteDb") ?? "Filename=statistics.db;Connection=shared";
 builder.Services.AddSingleton<ILiteDatabase>(_ => new LiteDatabase(liteDbConnectionString));
 
-// Statistics needs all 3 stores for aggregation
-builder.Services.AddSingleton<PatientStore>();
-builder.Services.AddSingleton<DoctorStore>();
-builder.Services.AddSingleton<ExamStore>();
+var useInMemoryQueue = builder.Configuration.GetValue("Cqrs:UseInMemoryQueue", builder.Environment.IsEnvironment("Testing"));
+var isTesting = useInMemoryQueue;
+
+// In testing mode, use local statistics store (in-memory LiteDB);
+// in production, use HTTP clients to query other services
+if (isTesting)
+{
+    builder.Services.AddSingleton<StatisticsStore>();
+}
+else
+{
+    builder.Services.AddHttpClient("patients", c => c.BaseAddress = new Uri("http://localhost:5101"));
+    builder.Services.AddHttpClient("doctors", c => c.BaseAddress = new Uri("http://localhost:5102"));
+    builder.Services.AddHttpClient("exams", c => c.BaseAddress = new Uri("http://localhost:5103"));
+}
+
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 builder.Services.AddSingleton<WriteCommandResultCoordinator>();
-builder.Services.AddSingleton<StatisticsWriteCommandHandler>();
-
-var useInMemoryQueue = builder.Configuration.GetValue("Cqrs:UseInMemoryQueue", builder.Environment.IsEnvironment("Testing"));
+builder.Services.AddSingleton<IWriteCommandHandler, StatisticsWriteCommandHandler>();
 if (useInMemoryQueue)
 {
     builder.Services.AddSingleton<IWriteCommandQueue, StatisticsInMemoryWriteCommandQueue>();

@@ -4,7 +4,7 @@ description: Implement server-side pagination, search filtering, and column sort
 globs:
   - "**/Stores/**"
   - "**/Endpoints/**"
-  - "RestReactAspire.Shared/Models/Link.cs"
+  - "**/Models/Link.cs"
   - "frontend/src/pages/*ListPage.tsx"
 ---
 

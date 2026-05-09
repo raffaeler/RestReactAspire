@@ -12,7 +12,7 @@
 |---------|------|
 | `RestReactAspire.AppHost` | .NET Aspire orchestrator — wires all services, frontend, and shared telemetry |
 | `RestReactAspire.Server` | **YARP reverse proxy gateway** — routes requests to microservices; serves frontend static files; no database, no stores |
-| `RestReactAspire.Shared` | Shared library — domain models, DTOs, CQRS abstractions, telemetry primitives, base store classes, LiteDB factory |
+| `RestReactAspire.Infrastructure.Cqrs` | CQRS abstractions NuGet package — interfaces (`IWriteCommandQueue`, `IWriteCommandHandler`), write command records, `WriteCommandEnvelope`, `WriteCommandResult`, RabbitMQ connection/options, `WriteCommandResultCoordinator`, `RabbitMqWriteCommandProcessorBase` |
 | `RestReactAspire.PatientService` | Patient microservice — own LiteDB, CQRS pipeline, telemetry |
 | `RestReactAspire.DoctorService` | Doctor microservice — own LiteDB, CQRS pipeline, telemetry |
 | `RestReactAspire.ExamService` | Exam microservice — own LiteDB, CQRS pipeline, telemetry |
@@ -67,12 +67,12 @@
 │                        │ Telemetry     │                         │
 │                        └───────────────┘                         │
 │                                                                  │
-│              RestReactAspire.Shared (all services)                │
-│              ┌──────────────────────────────────┐                │
-│              │ Models, DTOs, CQRS abstractions, │                │
-│              │ BaseStore, LiteDbFactory,        │                │
-│              │ Telemetry primitives             │                │
-│              └──────────────────────────────────┘                │
+│              RestReactAspire.Infrastructure.Cqrs                      │
+│              ┌──────────────────────────────────┐                   │
+│              │ CQRS abstractions (interfaces,   │                   │
+│              │ write commands, RabbitMQ,        │                   │
+│              │ result coordinator) — NuGet pkg  │                   │
+│              └──────────────────────────────────┘                   │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -108,7 +108,7 @@ A REST maturity constraint (Richardson Maturity Level 3). Every API response emb
 
 | Where | File(s) | Details |
 |-------|---------|---------|
-| Link model | `Shared\Models\Link.cs` — `Link`, `PaginationInfo`, `SortInfo`, `PaginationLinks` | Shared HATEOAS primitives; `PaginationLinks.Build()` generates `self/first/last/prev/next` |
+| Link model | `{Service}\Models\Link.cs` — `Link`, `PaginationInfo`, `SortInfo`, `PaginationLinks` | Per-service HATEOAS primitives; `PaginationLinks.Build()` generates `self/first/last/prev/next` |
 | Root discovery | Gateway root endpoint — `MapRootEndpoints` | `GET /api` returns `ApiRootResponse` with all top-level link relations (pointing to gateway URLs) |
 | Per-resource links | `PatientService\Endpoints\PatientEndpoints.cs` — `ToPatientResponse` | `self`, `update`, `delete`, `exams`, `collection`; HREFs point to gateway |
 | | `DoctorService\Endpoints\DoctorEndpoints.cs` — `ToDoctorResponse` | Same pattern |
@@ -116,18 +116,18 @@ A REST maturity constraint (Richardson Maturity Level 3). Every API response emb
 | | Gateway fan-out — Admin endpoints | Seed/Reset/Stats responses carry cross-resource navigation links |
 | | `StatisticsService\Endpoints\StatisticsEndpoints.cs` — `GetStatisticsLinks` | Links to sibling charts and entity collections (via gateway) |
 | Frontend consumer | `frontend\src\api\apiClient.ts` — `discoverApi()`, `getLink()`, `findLink()` | Client discovers the root once and navigates via link relations |
-| Frontend types | `frontend\src\types\hateoas.ts` | TypeScript contracts mirroring shared `Link` model |
+| Frontend types | `frontend\src\types\hateoas.ts` | TypeScript contracts mirroring per-service `Link` model |
 
 ### 3.3 Layered Architecture
 
-Each microservice follows a **CQRS-oriented layered design** where reads and writes are separated. The Shared library provides base classes and abstractions; each service adds its own entity-specific implementations.
+Each microservice follows a **CQRS-oriented layered design** where reads and writes are separated. Each service owns its models, stores, and telemetry. CQRS abstractions are provided by the `RestReactAspire.Infrastructure.Cqrs` NuGet package; each service adds its own entity-specific implementations.
 
 | Layer | Files | Responsibility |
 |-------|-------|----------------|
 | **Presentation (Endpoints)** | `{Service}\Endpoints\*.cs` | HTTP mapping, response shaping, telemetry, HATEOAS link generation |
 | **Command Layer (Write Side)** | `{Service}\Cqrs\*.cs` | Build write commands, enqueue to LavinMQ (RabbitMQ protocol), process queued commands, coordinate command results |
-| **Query/Data Access Layer** | `Shared\Stores\BaseStore.cs` + `{Service}\Stores\*.cs` | Generic CRUD/pagination/search in Shared; entity-specific queries in service stores |
-| **Models** | `Shared\Models\*.cs` | Domain entities and DTOs (referenced by all services) |
+| **Query/Data Access Layer** | `{Service}\Stores\*.cs` | Entity-specific CRUD/pagination/search in each service's store |
+| **Models** | `{Service}\Models\*.cs` | Domain entities and DTOs (owned by each service) |
 
 ### 3.4 Client-Server Architecture
 
@@ -148,21 +148,21 @@ The system is divided into a YARP gateway + microservice backend and a single-pa
 | Where | File | Details |
 |-------|------|---------|
 | AppHost | `AppHost\AppHost.cs` | `AddProject` for each microservice + gateway; `AddViteApp` (frontend); health checks; service references; container publishing |
-| Service Defaults | `Shared\Extensions.cs` — `AddServiceDefaults` | Adds service discovery, HTTP resilience, OpenTelemetry, health checks — used by all services |
+| Service Defaults | Each service's `Extensions.cs` — `AddServiceDefaults` | Adds service discovery, HTTP resilience, OpenTelemetry, health checks — each service has its own copy |
 
 ### 3.6 CQRS with Asynchronous Messaging
 
-**Each microservice has its own independent CQRS pipeline.** Writes are handled as commands and queued through LavinMQ using the RabbitMQ protocol. A background processor consumes commands and applies state changes to the service's own LiteDB through its stores. Reads remain direct query operations from endpoint handlers. The CQRS abstractions (interfaces, envelope types, coordinator) live in `RestReactAspire.Shared/CqrsAbstractions/`.
+**Each microservice has its own independent CQRS pipeline.** Writes are handled as commands and queued through LavinMQ using the RabbitMQ protocol. A background processor consumes commands and applies state changes to the service's own LiteDB through its stores. Reads remain direct query operations from endpoint handlers. The CQRS abstractions (interfaces, envelope types, coordinator) live in `RestReactAspire.Infrastructure.Cqrs` NuGet package.
 
 | Where | File(s) | Details |
 |-------|---------|---------|
-| CQRS abstractions | `Shared\CqrsAbstractions\*.cs` | Shared interfaces: `IWriteCommandQueue`, `IWriteCommandHandler`, `WriteCommandEnvelope` |
+| CQRS abstractions | `RestReactAspire.Infrastructure.Cqrs` NuGet package | Shared interfaces: `IWriteCommandQueue`, `IWriteCommandHandler`, `WriteCommandEnvelope` |
 | Command contracts | `{Service}\Cqrs\WriteCommands.cs` | Service-specific write command records |
-| Queue abstraction | `Shared\CqrsAbstractions\IWriteCommandQueue.cs` | Endpoint write handlers depend on the shared abstraction |
+| Queue abstraction | `RestReactAspire.Infrastructure.Cqrs\IWriteCommandQueue.cs` | Endpoint write handlers depend on the shared abstraction |
 | RabbitMQ producer | `{Service}\Cqrs\RabbitMqWriteCommandQueue.cs` | Enqueues persistent messages to LavinMQ queue |
 | RabbitMQ consumer | `{Service}\Cqrs\RabbitMqWriteCommandProcessor.cs` | Background worker dequeues and executes commands |
 | Command execution | `{Service}\Cqrs\WriteCommandHandler.cs` | Applies write operations via service stores |
-| Request/response sync | `Shared\CqrsAbstractions\WriteCommandResultCoordinator.cs` | Correlates HTTP request with command completion (shared) |
+| Request/response sync | `RestReactAspire.Infrastructure.Cqrs\WriteCommandResultCoordinator.cs` | Correlates HTTP request with command completion (shared via NuGet) |
 | Runtime registration | `{Service}\Program.cs` | Registers CQRS services; uses in-memory queue in `Testing` environment |
 | Aspire dependency | `AppHost\AppHost.cs` | Each service waits for `lavinmq` container before startup |
 
@@ -180,7 +180,7 @@ The solution is decomposed into independent microservices, each responsible for 
 **Key characteristics:**
 - **Independent deployability**: Each service can be built, tested, and deployed separately.
 - **Data isolation**: No shared database — each service has its own LiteDB file.
-- **Shared library**: `RestReactAspire.Shared` avoids code duplication for models, DTOs, CQRS abstractions, and base store logic.
+- **Decoupled architecture**: Each service owns its models, DTOs, stores, and telemetry. Only CQRS abstractions are shared via `RestReactAspire.Infrastructure.Cqrs`.
 - **Gateway routing**: The YARP gateway provides a unified API surface; clients never know about internal service topology.
 
 ---
@@ -189,20 +189,20 @@ The solution is decomposed into independent microservices, each responsible for 
 
 ### 4.1 Data Transfer Object (DTO)
 
-Separate immutable record types for creation requests, update requests, and responses. Decouples the API contract from internal domain entities. All DTOs live in the Shared library.
+Separate immutable record types for creation requests, update requests, and responses. Decouples the API contract from internal domain entities. DTOs live in each service's own `Models/` directory.
 
 | DTO set | File |
 |---------|------|
-| Patient DTOs | `Shared\Models\PatientDto.cs` — `CreatePatientRequest`, `UpdatePatientRequest`, `PatientResponse`, `PatientListResponse`, `ApiRootResponse` |
-| Doctor DTOs | `Shared\Models\DoctorDto.cs` — `CreateDoctorRequest`, `UpdateDoctorRequest`, `DoctorResponse`, `DoctorListResponse`, `AssignDoctorRequest` |
-| Exam DTOs | `Shared\Models\ExamDto.cs` — `CreateExamRequest`, `UpdateExamRequest`, `ExamResponse`, `ExamListResponse` |
-| Admin DTOs | `Shared\Models\AdminDto.cs` — `SeedResponse`, `ResetResponse`, `StatsResponse` |
-| Statistics DTOs | `Shared\Models\StatisticsDto.cs` — `PatientsByAgeGroupResponse`, `ExamsPerDoctorResponse`, `ExamsOverTimeResponse`, `AvgDurationByExamTypeResponse` |
-| HATEOAS primitives | `Shared\Models\Link.cs` — `Link`, `PaginationInfo`, `SortInfo` |
+| Patient DTOs | `PatientService\Models\PatientDto.cs` — `CreatePatientRequest`, `UpdatePatientRequest`, `PatientResponse`, `PatientListResponse`, `ApiRootResponse` |
+| Doctor DTOs | `DoctorService\Models\DoctorDto.cs` — `CreateDoctorRequest`, `UpdateDoctorRequest`, `DoctorResponse`, `DoctorListResponse`, `AssignDoctorRequest` |
+| Exam DTOs | `ExamService\Models\ExamDto.cs` — `CreateExamRequest`, `UpdateExamRequest`, `ExamResponse`, `ExamListResponse` |
+| Admin DTOs | `Server\Models\AdminDto.cs` — `SeedResponse`, `ResetResponse`, `StatsResponse` |
+| Statistics DTOs | `StatisticsService\Models\StatisticsDto.cs` — `PatientsByAgeGroupResponse`, `ExamsPerDoctorResponse`, `ExamsOverTimeResponse`, `AvgDurationByExamTypeResponse` |
+| HATEOAS primitives | `{Service}\Models\Link.cs` — `Link`, `PaginationInfo`, `SortInfo` |
 
 ### 4.2 Repository Pattern
 
-Each entity has a dedicated **Store** class that encapsulates all data access logic against its service's LiteDB collection. Store base class with generic CRUD, pagination, search, and sorting lives in Shared. Each microservice extends it for entity-specific needs.
+Each entity has a dedicated **Store** class that encapsulates all data access logic against its service's LiteDB collection. Each microservice owns its stores with full CRUD, pagination, search, and sorting.
 
 | Store | File | Key Methods |
 |-------|------|-------------|
@@ -229,16 +229,16 @@ Each microservice's embedded database and its stores use the Singleton lifecycle
 |-------|------|---------|
 | `ILiteDatabase` | `{Service}\Program.cs` | `Connection=shared` for concurrent access |
 | Stores | `{Service}\Program.cs` | Registered as singletons; hold references to the service's singleton DB |
-| CQRS coordinator | `{Service}\Program.cs`, `Shared\CqrsAbstractions\WriteCommandResultCoordinator.cs` | Singleton command result correlation across request/worker boundary |
-| `LiteDbFactory._configured` | `Shared\Stores\LiteDbFactory.cs` | Thread-safe one-time initialization with `lock` + boolean guard |
+| CQRS coordinator | `{Service}\Program.cs`, `RestReactAspire.Infrastructure.Cqrs\WriteCommandResultCoordinator.cs` | Singleton command result correlation across request/worker boundary |
+| `LiteDbFactory._configured` | `{Service}\Stores\LiteDbFactory.cs` | Thread-safe one-time initialization with `lock` + boolean guard |
 
 ### 4.5 Factory Pattern
 
-A static factory in the Shared library encapsulates LiteDB mapper configuration, including custom type serializers and entity pre-warming. Called by every microservice at startup.
+A static factory in each service's `Stores/` directory encapsulates LiteDB mapper configuration, including custom type serializers and entity pre-warming. Called by the owning microservice at startup.
 
 | Where | File | Details |
 |-------|------|---------|
-| `LiteDbFactory.ConfigureMapper` | `Shared\Stores\LiteDbFactory.cs` | Registers `DateOnly`/`TimeOnly` serializers, pre-warms entity mapper cache |
+| `LiteDbFactory.ConfigureMapper` | `{Service}\Stores\LiteDbFactory.cs` | Registers `DateOnly`/`TimeOnly` serializers, pre-warms entity mapper cache |
 
 ### 4.6 Builder Pattern
 
@@ -249,8 +249,8 @@ Used pervasively through host configuration APIs and in HATEOAS link generation.
 | Application builder | `{Service}\Program.cs` | `WebApplication.CreateBuilder` → `AddServiceDefaults` → `Build` → `Run` |
 | Gateway builder | `Server\Program.cs` | Builds YARP reverse proxy configuration |
 | Aspire orchestration | `AppHost\AppHost.cs` | `DistributedApplication.CreateBuilder` → `AddProject` (×5) → `AddViteApp` → `Build` → `Run` |
-| Pagination link builder | `Shared\Models\Link.cs` — `PaginationLinks.Build()` | Fluent construction of `self/first/last/prev/next` links with query parameters |
-| OpenTelemetry pipeline | `Shared\Extensions.cs` — `ConfigureOpenTelemetry` | `.WithMetrics(m => ...)` `.WithTracing(t => ...)` chain |
+| Pagination link builder | `{Service}\Models\Link.cs` — `PaginationLinks.Build()` | Fluent construction of `self/first/last/prev/next` links with query parameters |
+| OpenTelemetry pipeline | Each service's `Extensions.cs` — `ConfigureOpenTelemetry` | `.WithMetrics(m => ...)` `.WithTracing(t => ...)` chain |
 
 ### 4.7 Observer Pattern
 
@@ -264,7 +264,7 @@ The telemetry layer implements the Observer pattern through `ActivitySource` (di
 | `AdminTelemetry` | Gateway telemetry | `StatsQueried`, `DatabaseSeeded`, `DatabaseReset` |
 | `RootTelemetry` | Gateway telemetry | `RootRequested` |
 | `StatisticsTelemetry` | `StatisticsService\Telemetry\StatisticsTelemetry.cs` | Four chart-specific query counters |
-| Observer registration | `Shared\Extensions.cs` — `ConfigureOpenTelemetry` | Registers all sources and meters; OTLP exporter subscribes as observer |
+| Observer registration | Each service's `Extensions.cs` — `ConfigureOpenTelemetry` | Registers the service's own sources and meters; OTLP exporter subscribes as observer |
 
 ### 4.8 Strategy Pattern (Sorting)
 
@@ -282,7 +282,7 @@ Custom LiteDB type serializers adapt .NET types (`DateOnly`, `TimeOnly`) to BSON
 
 | Where | File | Details |
 |-------|------|---------|
-| `DateOnly` adapter | `Shared\Stores\LiteDbFactory.cs` | `BsonMapper.Global.RegisterType` — ISO 8601 round-trip format |
+| `DateOnly` adapter | `{Service}\Stores\LiteDbFactory.cs` | `BsonMapper.Global.RegisterType` — ISO 8601 round-trip format |
 | `TimeOnly` adapter | Same file | Same approach |
 
 ### 4.10 Proxy Pattern
@@ -335,11 +335,11 @@ The endpoint registration composes a tree of route groups where each sub-group i
 
 ### 4.15 Template Method Pattern
 
-Integration test classes share a common structure via `IClassFixture<TestWebApplicationFactory>`, where the factory defines the skeleton of server setup (replace LiteDB, configure mapper from Shared) and each test class fills in specific HTTP interactions.
+Integration test classes share a common structure via `IClassFixture<TestWebApplicationFactory>`, where the factory defines the skeleton of server setup (replace LiteDB, configure mapper from the service under test) and each test class fills in specific HTTP interactions.
 
 | Where | File | Details |
 |-------|------|---------|
-| Test factory | `Tests\TestWebApplicationFactory.cs` | Replaces `ILiteDatabase` with in-memory instance; calls `Shared\Stores\LiteDbFactory.ConfigureMapper()` |
+| Test factory | `Tests\TestWebApplicationFactory.cs` | Replaces `ILiteDatabase` with in-memory instance; calls the service's `LiteDbFactory.ConfigureMapper()` |
 | Patient tests | `Tests\PatientEndpointTests.cs` | Full HTTP round-trip: CRUD, HATEOAS link verification |
 | Exam tests | `Tests\ExamEndpointTests.cs` | Create with patient dependency, assign-doctor, sub-resource queries |
 | Doctor tests | `Tests\DoctorEndpointTests.cs` | CRUD + doctor-exams sub-resource |
@@ -372,7 +372,7 @@ Store unit test classes implement `IDisposable` to deterministically release in-
 | Aspect | Description |
 |--------|-------------|
 | **What** | Separate code paths for reads (queries) vs. writes (commands) |
-| **Status in this solution** | **Implemented** using queued write commands through LavinMQ/RabbitMQ. **Each microservice has its own independent CQRS pipeline.** CQRS abstractions live in `Shared\CqrsAbstractions\*.cs`. |
+| **Status in this solution** | **Implemented** using queued write commands through LavinMQ/RabbitMQ. **Each microservice has its own independent CQRS pipeline.** CQRS abstractions live in `RestReactAspire.Infrastructure.Cqrs` NuGet package. |
 | **Pros** | Isolates write concerns, supports asynchronous processing, and keeps read endpoints simple |
 | **Trade-offs** | Added moving parts (queue, consumer worker, command coordination) and timeout/error handling complexity; now replicated per service |
 | **Where implemented** | Write endpoints enqueue commands; each service's `RabbitMqWriteCommandProcessor` executes them via `WriteCommandHandler`; service stores persist changes |
@@ -492,23 +492,23 @@ Store unit test classes implement `IDisposable` to deterministically release in-
 | # | Name | Category | Status | Primary Location(s) |
 |---|------|----------|--------|---------------------|
 | 1 | REST | Architectural Style | ✅ Used | `{Service}\Program.cs`, `{Service}\Endpoints\*.cs`, `Server\Program.cs` |
-| 2 | HATEOAS | Architectural Constraint (REST L3) | ✅ Used | `Shared\Models\Link.cs`, `{Service}\Endpoints\*.cs`, `frontend\api\apiClient.ts` |
-| 3 | Layered Architecture | Architectural Style | ✅ Used | `{Service}\Endpoints\*.cs` → `{Service}\Cqrs\*.cs` → `Shared\Stores\*.cs` → `Shared\Models\*.cs` |
+| 2 | HATEOAS | Architectural Constraint (REST L3) | ✅ Used | `{Service}\Models\Link.cs`, `{Service}\Endpoints\*.cs`, `frontend\api\apiClient.ts` |
+| 3 | Layered Architecture | Architectural Style | ✅ Used | `{Service}\Endpoints\*.cs` → `{Service}\Cqrs\*.cs` → `{Service}\Stores\*.cs` → `{Service}\Models\*.cs` |
 | 4 | Client-Server | Architectural Style | ✅ Used | `Server\Program.cs` (gateway), `{Service}\Program.cs`, `frontend\src\App.tsx` |
-| 5 | Service-Oriented (Aspire) | Architectural Style | ✅ Used | `AppHost\AppHost.cs`, `Shared\Extensions.cs` |
+| 5 | Service-Oriented (Aspire) | Architectural Style | ✅ Used | `AppHost\AppHost.cs`, each service's `Extensions.cs` |
 | 6 | Microservices | Architectural Style | ✅ Used | PatientService, DoctorService, ExamService, StatisticsService (each with own DB) |
-| 7 | CQRS | Architectural Pattern | ✅ Used | `Shared\CqrsAbstractions\*.cs`, `{Service}\Cqrs\*.cs`, write handlers in `{Service}\Endpoints\*.cs` |
+| 7 | CQRS | Architectural Pattern | ✅ Used | `RestReactAspire.Infrastructure.Cqrs`, `{Service}\Cqrs\*.cs`, write handlers in `{Service}\Endpoints\*.cs` |
 | 8 | API Gateway | Design Pattern | ✅ Used | `Server\Program.cs` (YARP reverse proxy) |
 | 9 | Fan-Out | Distributed Systems Pattern | ✅ Used | Gateway admin endpoint (parallel seed/reset/stats) |
-| 10 | Data Transfer Object | Design Pattern | ✅ Used | `Shared\Models\*Dto.cs` |
-| 11 | Repository | Design Pattern | ✅ Used | `Shared\Stores\BaseStore.cs`, `{Service}\Stores\*.cs` |
+| 10 | Data Transfer Object | Design Pattern | ✅ Used | `{Service}\Models\*Dto.cs` |
+| 11 | Repository | Design Pattern | ✅ Used | `{Service}\Stores\*.cs` |
 | 12 | Dependency Injection | Design Pattern | ✅ Used | `{Service}\Program.cs`, all endpoint handlers |
-| 13 | Singleton | Design Pattern (GoF) | ✅ Used | `{Service}\Program.cs`, `Shared\Stores\LiteDbFactory.cs` |
-| 14 | Factory | Design Pattern (GoF) | ✅ Used | `Shared\Stores\LiteDbFactory.cs` |
-| 15 | Builder | Design Pattern (GoF) | ✅ Used | `{Service}\Program.cs`, `AppHost.cs`, `Shared\Models\Link.cs`, `Shared\Extensions.cs` |
-| 16 | Observer | Design Pattern (GoF) | ✅ Used | `{Service}\Telemetry\*.cs`, `Shared\Extensions.cs` |
+| 13 | Singleton | Design Pattern (GoF) | ✅ Used | `{Service}\Program.cs`, `{Service}\Stores\LiteDbFactory.cs` |
+| 14 | Factory | Design Pattern (GoF) | ✅ Used | `{Service}\Stores\LiteDbFactory.cs` |
+| 15 | Builder | Design Pattern (GoF) | ✅ Used | `{Service}\Program.cs`, `AppHost.cs`, `{Service}\Models\Link.cs`, each service's `Extensions.cs` |
+| 16 | Observer | Design Pattern (GoF) | ✅ Used | `{Service}\Telemetry\*.cs`, each service's `Extensions.cs` |
 | 17 | Strategy (Sorting) | Design Pattern (GoF) | ✅ Used | `{Service}\Stores\*.cs` — `ApplySort` methods |
-| 18 | Adapter | Design Pattern (GoF) | ✅ Used | `Shared\Stores\LiteDbFactory.cs` (type serializers) |
+| 18 | Adapter | Design Pattern (GoF) | ✅ Used | `{Service}\Stores\LiteDbFactory.cs` (type serializers) |
 | 19 | Proxy | Design Pattern (GoF) | ✅ Used | `frontend\vite.config.ts` |
 | 20 | Facade | Design Pattern (GoF) | ✅ Used | `frontend\src\api\apiClient.ts` |
 | 21 | Composite | Design Pattern (GoF) | ✅ Used | `{Service}\Program.cs` (route groups) |
@@ -547,31 +547,38 @@ RestReactAspire.Server  (single project)
 
 ### After (Microservices)
 ```
-RestReactAspire.Shared/           (shared across all services)
-  ├── Models/                     (domain entities + DTOs)
-  ├── Stores/BaseStore.cs         (generic CRUD base)
-  ├── Stores/LiteDbFactory.cs     (serializer config)
-  ├── CqrsAbstractions/           (interfaces + coordinator)
-  └── Telemetry/                  (shared primitives)
+RestReactAspire.Infrastructure.Cqrs/ # CQRS NuGet package (abstractions)
+  ├── IWriteCommandQueue.cs, IWriteCommandHandler.cs
+  ├── WriteCommands.cs               # All write command record types
+  ├── WriteCommandEnvelope.cs
+  ├── WriteCommandResult.cs
+  ├── WriteCommandResultCoordinator.cs
+  ├── RabbitMqWriteCommandProcessorBase.cs
+  ├── RabbitMqWriteCommandQueue.cs
+  ├── RabbitMqConnectionManager.cs
+  ├── RabbitMqOptions.cs
+  └── InMemoryWriteCommandQueue.cs
 
 RestReactAspire.Server/           (YARP gateway only)
   ├── Program.cs                  (YARP routes)
+  ├── Models/                     (Link, PaginationInfo, AdminDto)
+  ├── Telemetry/                  (AdminTelemetry, RootTelemetry)
   └── Extensions.cs               (service defaults)
 
-RestReactAspire.PatientService/   (own DB, CQRS, telemetry)
-RestReactAspire.DoctorService/    (own DB, CQRS, telemetry)
-RestReactAspire.ExamService/      (own DB, CQRS, telemetry)
-RestReactAspire.StatisticsService/(own DB, telemetry, read-optimised)
+RestReactAspire.PatientService/   (own Models, Stores, DB, CQRS, Telemetry)
+RestReactAspire.DoctorService/    (own Models, Stores, DB, CQRS, Telemetry)
+RestReactAspire.ExamService/      (own Models, Stores, DB, CQRS, Telemetry)
+RestReactAspire.StatisticsService/(own Models, Stores, DB, Telemetry, read-optimised)
 ```
 
 ### Key Migration Changes
 | Aspect | Before | After |
 |--------|--------|-------|
 | Database | Single `hospital.db` shared by all entities | Each service owns its own LiteDB file |
-| CQRS | One pipeline in Server | Independent pipeline per service; abstractions in Shared |
-| Telemetry | Single set in Server | Per-service telemetry; shared primitives in Shared |
-| Models/DTOs | In Server/Models | In Shared/Models — referenced by all services |
-| Stores | In Server/Stores | Base class in Shared; entity stores in each service |
+| CQRS | One pipeline in Server | Independent pipeline per service; abstractions in `RestReactAspire.Infrastructure.Cqrs` |
+| Telemetry | Single set in Server | Per-service telemetry; each service has its own `Extensions.cs` |
+| Models/DTOs | In Server/Models | Owned per service; each service has its own `Models/` directory |
+| Stores | In Server/Stores | Entity stores owned by each service; each has its own `LiteDbFactory` |
 | API Gateway | None (direct to Server) | YARP reverse proxy in Server |
 | Admin operations | Direct store calls in Server | Gateway fan-out to all services |
 | DI | Single container | Independent DI per service |

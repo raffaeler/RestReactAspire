@@ -1,11 +1,12 @@
 using System.Text.Json;
-using RestReactAspire.Shared.Cqrs;
-using RestReactAspire.Shared.Models;
-using RestReactAspire.Shared.Stores;
+using RestReactAspire.Infrastructure.Cqrs;
+using RestReactAspire.PatientService.Data;
+using RestReactAspire.PatientService.Models;
+using RestReactAspire.PatientService.Stores;
 
 namespace RestReactAspire.PatientService;
 
-public sealed class PatientWriteCommandHandler
+public sealed class PatientWriteCommandHandler : IWriteCommandHandler
 {
     private readonly PatientStore _patientStore;
 

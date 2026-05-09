@@ -1,11 +1,12 @@
 using System.Text.Json;
-using RestReactAspire.Shared.Cqrs;
-using RestReactAspire.Shared.Models;
-using RestReactAspire.Shared.Stores;
+using RestReactAspire.Infrastructure.Cqrs;
+using RestReactAspire.DoctorService.Data;
+using RestReactAspire.DoctorService.Models;
+using RestReactAspire.DoctorService.Stores;
 
 namespace RestReactAspire.DoctorService;
 
-public sealed class DoctorWriteCommandHandler
+public sealed class DoctorWriteCommandHandler : IWriteCommandHandler
 {
     private readonly DoctorStore _doctorStore;
 

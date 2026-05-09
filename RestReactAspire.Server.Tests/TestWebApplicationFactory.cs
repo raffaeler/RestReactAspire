@@ -2,7 +2,7 @@ using LiteDB;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using RestReactAspire.Shared.Stores;
+using RestReactAspire.PatientService.Stores;
 
 namespace RestReactAspire.Server.Tests;
 

@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using RestReactAspire.Shared.Cqrs;
-using RestReactAspire.Shared.Models;
-using RestReactAspire.Shared.Stores;
-using RestReactAspire.Shared.Telemetry;
+using RestReactAspire.Infrastructure.Cqrs;
+using RestReactAspire.PatientService.Models;
+using RestReactAspire.PatientService.Stores;
+using RestReactAspire.PatientService.Telemetry;
 
 namespace RestReactAspire.PatientService;
 

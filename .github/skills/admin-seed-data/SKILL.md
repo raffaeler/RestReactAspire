@@ -3,8 +3,8 @@ name: Admin and Seed Data
 description: Manage database seeding, reset operations, and the admin interface.
 globs:
   - "RestReactAspire.Server/Endpoints/AdminEndpoints.cs"
-  - "RestReactAspire.Shared/Stores/SeedDataGenerator.cs"
-  - "RestReactAspire.Shared/Models/AdminDto.cs"
+  - "**/Data/SeedDataGenerator.cs"
+  - "**/Models/AdminDto.cs"
   - "frontend/src/pages/AdminPage.tsx"
 ---
 
@@ -27,13 +27,13 @@ Served by the gateway, registered under `/api/admin`.
 | `/reset` | POST | Fans out reset to all services; aggregates results |
 | `/stats` | GET | Queries all services for counts; aggregates results |
 
-### Response DTOs (`RestReactAspire.Shared/Models/AdminDto.cs`)
+### Response DTOs (per-service `Models/AdminDto.cs`)
 - `SeedResponse(int PatientsCreated, int DoctorsCreated, int ExamsCreated, Links)`
 - `ResetResponse(int PatientsDeleted, int DoctorsDeleted, int ExamsDeleted, Links)`
 - `StatsResponse(int PatientCount, int DoctorCount, int ExamCount, Links)`
 
 ## Seed Data Generator
-Located in `RestReactAspire.Shared/Stores/SeedDataGenerator.cs`. Each microservice calls the shared generator to populate its own database with the relevant entity subset.
+Each microservice owns its own `SeedDataGenerator` in its `Data/` directory (e.g., `PatientService.Data.SeedDataGenerator`). Each microservice calls its own generator to populate its database with the relevant entity subset. Fixed `Random` seeds ensure deterministic, matching GUIDs across services.
 
 ### Current Data Volumes
 - **100 patients** — random Italian names, varied dates of birth, email, phone

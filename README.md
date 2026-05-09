@@ -14,7 +14,7 @@ The solution follows a **microservices architecture** orchestrated by .NET Aspir
 |---------|------|
 | `RestReactAspire.AppHost` | .NET Aspire orchestrator for all services |
 | `RestReactAspire.Server` | YARP reverse proxy gateway (no database, no stores) |
-| `RestReactAspire.Shared` | Shared library (models, DTOs, CQRS abstractions, telemetry, stores) |
+| `RestReactAspire.Infrastructure.Cqrs` | CQRS abstractions NuGet package (interfaces, write commands, RabbitMQ, result coordinator) |
 | `RestReactAspire.PatientService` | Patient microservice (own DB, CQRS, telemetry) |
 | `RestReactAspire.DoctorService` | Doctor microservice (own DB, CQRS, telemetry) |
 | `RestReactAspire.ExamService` | Exam microservice (own DB, CQRS, telemetry) |

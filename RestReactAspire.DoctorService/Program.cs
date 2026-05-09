@@ -1,7 +1,7 @@
 using LiteDB;
 using RestReactAspire.DoctorService;
-using RestReactAspire.Shared.Cqrs;
-using RestReactAspire.Shared.Stores;
+using RestReactAspire.Infrastructure.Cqrs;
+using RestReactAspire.DoctorService.Stores;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +18,7 @@ builder.Services.AddSingleton<DoctorStore>();
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 builder.Services.AddSingleton<WriteCommandResultCoordinator>();
 builder.Services.AddSingleton<DoctorWriteCommandHandler>();
+builder.Services.AddSingleton<IWriteCommandHandler>(sp => sp.GetRequiredService<DoctorWriteCommandHandler>());
 
 var useInMemoryQueue = builder.Configuration.GetValue("Cqrs:UseInMemoryQueue", builder.Environment.IsEnvironment("Testing"));
 if (useInMemoryQueue)

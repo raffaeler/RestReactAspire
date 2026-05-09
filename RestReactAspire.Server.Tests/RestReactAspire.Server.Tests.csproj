@@ -23,7 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RestReactAspire.Shared\RestReactAspire.Shared.csproj" />
     <ProjectReference Include="..\RestReactAspire.Server\RestReactAspire.Server.csproj" />
     <ProjectReference Include="..\RestReactAspire.PatientService\RestReactAspire.PatientService.csproj" />
     <ProjectReference Include="..\RestReactAspire.DoctorService\RestReactAspire.DoctorService.csproj" />

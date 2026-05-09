@@ -7,7 +7,7 @@ using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using RestReactAspire.Shared.Telemetry;
+using RestReactAspire.Server.Telemetry;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -59,22 +59,14 @@ public static class Extensions
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
-                    .AddMeter(PatientTelemetry.SourceName)
-                    .AddMeter(ExamTelemetry.SourceName)
-                    .AddMeter(DoctorTelemetry.SourceName)
                     .AddMeter(AdminTelemetry.SourceName)
-                    .AddMeter(RootTelemetry.SourceName)
-                    .AddMeter(StatisticsTelemetry.SourceName);
+                    .AddMeter(RootTelemetry.SourceName);
             })
             .WithTracing(tracing =>
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
-                    .AddSource(PatientTelemetry.SourceName)
-                    .AddSource(ExamTelemetry.SourceName)
-                    .AddSource(DoctorTelemetry.SourceName)
                     .AddSource(AdminTelemetry.SourceName)
                     .AddSource(RootTelemetry.SourceName)
-                    .AddSource(StatisticsTelemetry.SourceName)
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>

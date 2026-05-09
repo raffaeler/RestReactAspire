@@ -3,7 +3,7 @@ name: Statistics and Charts
 description: Add or modify statistics API endpoints and frontend chart visualizations using recharts.
 globs:
   - "RestReactAspire.StatisticsService/Endpoints/StatisticsEndpoints.cs"
-  - "RestReactAspire.Shared/Models/StatisticsDto.cs"
+  - "**/Models/StatisticsDto.cs"
   - "RestReactAspire.StatisticsService/Telemetry/StatisticsTelemetry.cs"
   - "frontend/src/pages/StatisticsPage.tsx"
   - "frontend/src/types/statistics.ts"
@@ -29,10 +29,10 @@ public record {StatName}Response(
     IReadOnlyList<Link> Links);
 ```
 - Each response includes HATEOAS links to all statistics endpoints plus main resource lists (via gateway URLs).
-- DTOs in `RestReactAspire.Shared/Models/StatisticsDto.cs`.
+- DTOs in each service's own `Models/` directory (e.g., `StatisticsService.Models.StatisticsDto`).
 
 ### Adding a New Statistic
-1. Add DTO records to `Shared/Models/StatisticsDto.cs`.
+1. Add DTO records to the service's `Models/` directory (e.g., `StatisticsService/Models/StatisticsDto.cs`).
 2. Add endpoint method in `StatisticsService/Endpoints/StatisticsEndpoints.cs`.
 3. Add telemetry counter in `StatisticsService/Telemetry/StatisticsTelemetry.cs`.
 4. Register the link in the gateway root endpoint and in `GetStatisticsLinks()`.

@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RestReactAspire.Shared\RestReactAspire.Shared.csproj" />
+
   </ItemGroup>
 
   <ItemGroup>

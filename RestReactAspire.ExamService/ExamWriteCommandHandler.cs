@@ -1,11 +1,12 @@
 using System.Text.Json;
-using RestReactAspire.Shared.Cqrs;
-using RestReactAspire.Shared.Models;
-using RestReactAspire.Shared.Stores;
+using RestReactAspire.ExamService.Data;
+using RestReactAspire.ExamService.Models;
+using RestReactAspire.ExamService.Stores;
+using RestReactAspire.Infrastructure.Cqrs;
 
 namespace RestReactAspire.ExamService;
 
-public sealed class ExamWriteCommandHandler
+public sealed class ExamWriteCommandHandler : IWriteCommandHandler
 {
     private readonly ExamStore _examStore;
 
@@ -83,9 +84,9 @@ public sealed class ExamWriteCommandHandler
     private WriteCommandResult HandleSeedData()
     {
         // Use SeedDataGenerator for deterministic IDs matching PatientService/DoctorService seeding
-        var patients = SeedDataGenerator.GeneratePatients();
-        var doctors = SeedDataGenerator.GenerateDoctors();
-        var exams = SeedDataGenerator.GenerateExams(patients, doctors);
+        var patientIds = SeedDataGenerator.GeneratePatientIds();
+        var doctorIds = SeedDataGenerator.GenerateDoctorIds();
+        var exams = SeedDataGenerator.GenerateExams(patientIds, doctorIds);
         _examStore.InsertBulk(exams);
 
         return WriteCommandResult.Success(

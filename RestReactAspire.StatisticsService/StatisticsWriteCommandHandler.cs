@@ -1,23 +1,10 @@
 using System.Text.Json;
-using RestReactAspire.Shared.Cqrs;
-using RestReactAspire.Shared.Models;
-using RestReactAspire.Shared.Stores;
+using RestReactAspire.Infrastructure.Cqrs;
 
 namespace RestReactAspire.StatisticsService;
 
-public sealed class StatisticsWriteCommandHandler
+public sealed class StatisticsWriteCommandHandler : IWriteCommandHandler
 {
-    private readonly PatientStore _patientStore;
-    private readonly DoctorStore _doctorStore;
-    private readonly ExamStore _examStore;
-
-    public StatisticsWriteCommandHandler(PatientStore patientStore, DoctorStore doctorStore, ExamStore examStore)
-    {
-        _patientStore = patientStore;
-        _doctorStore = doctorStore;
-        _examStore = examStore;
-    }
-
     public WriteCommandResult Handle(WriteCommandEnvelope envelope)
     {
         return envelope.CommandType switch
@@ -30,29 +17,15 @@ public sealed class StatisticsWriteCommandHandler
 
     private WriteCommandResult HandleSeedData()
     {
-        var patients = SeedDataGenerator.GeneratePatients();
-        var doctors = SeedDataGenerator.GenerateDoctors();
-        var exams = SeedDataGenerator.GenerateExams(patients, doctors);
-
-        _patientStore.InsertBulk(patients);
-        _doctorStore.InsertBulk(doctors);
-        _examStore.InsertBulk(exams);
-
-        return WriteCommandResult.Success(
-            patientsAffected: patients.Count,
-            doctorsAffected: doctors.Count,
-            examsAffected: exams.Count);
+        // Statistics aggregates from HTTP — no local seed data needed.
+        // This is a no-op; actual seeding is done by the endpoint via HTTP fan-out.
+        return WriteCommandResult.Success();
     }
 
     private WriteCommandResult HandleResetData()
     {
-        var deletedPatients = _patientStore.DeleteAll();
-        var deletedDoctors = _doctorStore.DeleteAll();
-        var deletedExams = _examStore.DeleteAll();
-
-        return WriteCommandResult.Success(
-            patientsAffected: deletedPatients,
-            doctorsAffected: deletedDoctors,
-            examsAffected: deletedExams);
+        // Statistics aggregates from HTTP — no local data to reset.
+        // This is a no-op; actual reset is done by the endpoint via HTTP fan-out.
+        return WriteCommandResult.Success();
     }
 }

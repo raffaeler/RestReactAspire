@@ -1,13 +1,13 @@
-using RestReactAspire.Shared.Cqrs;
+using RestReactAspire.Infrastructure.Cqrs;
 
 namespace RestReactAspire.DoctorService;
 
 public sealed class DoctorInMemoryWriteCommandQueue : IWriteCommandQueue
 {
-    private readonly DoctorWriteCommandHandler _handler;
+    private readonly IWriteCommandHandler _handler;
     private readonly WriteCommandResultCoordinator _resultCoordinator;
 
-    public DoctorInMemoryWriteCommandQueue(DoctorWriteCommandHandler handler, WriteCommandResultCoordinator resultCoordinator)
+    public DoctorInMemoryWriteCommandQueue(IWriteCommandHandler handler, WriteCommandResultCoordinator resultCoordinator)
     {
         _handler = handler;
         _resultCoordinator = resultCoordinator;

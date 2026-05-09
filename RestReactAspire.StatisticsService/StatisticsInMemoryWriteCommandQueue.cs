@@ -1,13 +1,13 @@
-using RestReactAspire.Shared.Cqrs;
+using RestReactAspire.Infrastructure.Cqrs;
 
 namespace RestReactAspire.StatisticsService;
 
 public sealed class StatisticsInMemoryWriteCommandQueue : IWriteCommandQueue
 {
-    private readonly StatisticsWriteCommandHandler _handler;
+    private readonly IWriteCommandHandler _handler;
     private readonly WriteCommandResultCoordinator _resultCoordinator;
 
-    public StatisticsInMemoryWriteCommandQueue(StatisticsWriteCommandHandler handler, WriteCommandResultCoordinator resultCoordinator)
+    public StatisticsInMemoryWriteCommandQueue(IWriteCommandHandler handler, WriteCommandResultCoordinator resultCoordinator)
     {
         _handler = handler;
         _resultCoordinator = resultCoordinator;

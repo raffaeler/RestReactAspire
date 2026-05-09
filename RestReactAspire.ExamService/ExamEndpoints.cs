@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using RestReactAspire.Shared.Cqrs;
-using RestReactAspire.Shared.Models;
-using RestReactAspire.Shared.Stores;
-using RestReactAspire.Shared.Telemetry;
+using RestReactAspire.ExamService.Models;
+using RestReactAspire.ExamService.Stores;
+using RestReactAspire.ExamService.Telemetry;
+using RestReactAspire.Infrastructure.Cqrs;
 
 namespace RestReactAspire.ExamService;
 

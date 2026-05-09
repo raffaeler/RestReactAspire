@@ -18,45 +18,23 @@ RestReactAspire/
 ├── RestReactAspire.Server/         # YARP reverse proxy gateway
 │   ├── Program.cs                  # Gateway entry point, YARP config
 │   └── Extensions.cs               # Service defaults (OpenTelemetry, health, resilience)
-├── RestReactAspire.Shared/         # Shared library
-│   ├── Models/                     # Domain entities and DTOs
-│   │   ├── Patient.cs, PatientDto.cs
-│   │   ├── Doctor.cs, DoctorDto.cs
-│   │   ├── Exam.cs, ExamDto.cs
-│   │   ├── Link.cs                 # HATEOAS types + PaginationLinks helper
-│   │   ├── AdminDto.cs
-│   │   └── StatisticsDto.cs
-│   ├── Stores/                     # Standalone store classes + LiteDB factory
-│   │   ├── PatientStore.cs         # CRUD, pagination, search, sort
-│   │   ├── DoctorStore.cs
-│   │   ├── ExamStore.cs
-│   │   ├── LiteDbFactory.cs        # Custom serializer registration
-│   │   └── SeedDataGenerator.cs    # Deterministic seed data (fixed Random seeds)
-│   ├── Cqrs/                       # CQRS abstractions (interfaces, coordinator, options)
-│   │   ├── WriteCommands.cs        # All command record types
-│   │   ├── IWriteCommandQueue.cs   # Queue abstraction
-│   │   ├── WriteCommandResultCoordinator.cs # Async result correlation
-│   │   ├── InMemoryWriteCommandQueue.cs
-│   │   ├── RabbitMqOptions.cs
-│   │   ├── RabbitMqConnectionManager.cs
-│   │   ├── RabbitMqWriteCommandQueue.cs
-│   │   ├── RabbitMqWriteCommandProcessor.cs   # Reference implementation (not registered directly)
-│   │   └── WriteCommandHandler.cs             # Reference handler (not registered directly)
-│   └── Telemetry/                  # Per-entity telemetry classes
-│       ├── PatientTelemetry.cs
-│       ├── DoctorTelemetry.cs
-│       ├── ExamTelemetry.cs
-│       ├── StatisticsTelemetry.cs
-│       ├── AdminTelemetry.cs
-│       └── RootTelemetry.cs
+├── RestReactAspire.Infrastructure.Cqrs/ # CQRS abstractions NuGet package
+│   ├── IWriteCommandQueue.cs        # Queue abstraction
+│   ├── InMemoryWriteCommandQueue.cs
+│   ├── RabbitMqConnectionManager.cs
+│   ├── RabbitMqOptions.cs
+│   ├── RabbitMqWriteCommandQueue.cs
+│   ├── RabbitMqWriteCommandProcessorBase.cs # Abstract base processor
+│   ├── WriteCommandResultCoordinator.cs    # Async result correlation
+│   ├── WriteCommandEnvelope.cs
+│   ├── WriteCommandResult.cs
+│   └── WriteCommands.cs             # All write command record types
 ├── RestReactAspire.PatientService/ # Patient microservice
 │   ├── Program.cs                  # Service entry point, DI, own LiteDB, CQRS wiring
-│   ├── PatientEndpoints.cs          # CRUD + admin endpoints
-│   ├── PatientWriteCommandHandler.cs # Service-specific CQRS handler
-│   ├── PatientInMemoryWriteCommandQueue.cs
-│   ├── PatientRabbitMqWriteCommandProcessor.cs
-│   ├── Extensions.cs                # Service defaults (OTel, health, resilience)
-│   └── Properties/launchSettings.json # Port config (http://localhost:5101)
+│   ├── Models/                     # Own domain models + DTOs
+│   ├── Stores/                     # Own store classes + LiteDbFactory
+│   ├── Telemetry/                  # Own telemetry classes
+│   ├── Data/                       # Seed data generator
 ├── RestReactAspire.DoctorService/  # Doctor microservice
 │   ├── Program.cs
 │   ├── DoctorEndpoints.cs
@@ -109,16 +87,16 @@ RestReactAspire/
 1. **Microservices**: Each domain entity (Patient, Doctor, Exam, Statistics) lives in its own service with independent database, CQRS pipeline, and telemetry.
 2. **HATEOAS-first**: All API navigation is link-driven; the frontend only hard-codes `GET /api`. Links point to gateway URLs.
 3. **YARP Gateway**: The Server is a reverse proxy that routes `/api/patients` → PatientService, `/api/doctors` → DoctorService, etc.
-4. **Shared Library**: Common models, DTOs, CQRS abstractions, telemetry primitives, and store base classes in `RestReactAspire.Shared`.
+4. **CQRS Infrastructure**: CQRS abstractions (interfaces, write commands, RabbitMQ, result coordinator) in `RestReactAspire.Infrastructure.Cqrs` NuGet package.
 5. **LiteDB**: Each service has its own embedded NoSQL DB for zero-setup persistence; no migrations needed.
 6. **Minimal APIs**: No controllers; all endpoints are static extension methods on `RouteGroupBuilder`.
 7. **Aspire**: Orchestrates all services + frontend with service discovery and shared telemetry.
 8. **OpenTelemetry**: Full observability with traces, metrics, and structured logs on every endpoint, per service.
 
 ## Adding a New Feature End-to-End
-1. **Shared Model**: Add domain class + DTO records in `RestReactAspire.Shared/Models/`.
-2. **Store base**: Ensure base store support in `RestReactAspire.Shared/Stores/`.
-3. **New Service**: Create new microservice project; reference Shared library.
+1. **Models + DTOs**: Add domain class + DTO records in the service's `Models/` directory.
+2. **Store**: Add or extend store class in the service's `Stores/` directory.
+3. **New Service**: Create new microservice project; reference `RestReactAspire.Infrastructure.Cqrs` NuGet package.
 4. **Endpoints**: Add endpoint class in the service's `Endpoints/` directory.
 5. **CQRS**: Implement command/query pipeline in the service's `Cqrs/` directory.
 6. **Telemetry**: Add telemetry class in the service's `Telemetry/` directory.

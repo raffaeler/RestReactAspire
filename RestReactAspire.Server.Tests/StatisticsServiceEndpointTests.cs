@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using RestReactAspire.Shared.Models;
+using RestReactAspire.StatisticsService.Models;
 
 namespace RestReactAspire.Server.Tests;
 

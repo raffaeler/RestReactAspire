@@ -49,7 +49,7 @@ var server = builder.AddProject<Projects.RestReactAspire_Server>("server")
 - **Service discovery**: Enabled by default via Aspire service defaults. The gateway discovers microservices by their Aspire service names.
 
 ## Service Defaults (`Extensions.cs`)
-Shared configuration applied to all services (via `RestReactAspire.Shared`):
+Each service has its own `Extensions.cs` with `AddServiceDefaults()` that configures:
 - OpenTelemetry (traces, metrics, logs)
 - Health checks (readiness + liveness)
 - Service discovery

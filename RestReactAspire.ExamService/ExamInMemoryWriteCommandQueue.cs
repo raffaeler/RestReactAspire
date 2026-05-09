@@ -1,13 +1,13 @@
-using RestReactAspire.Shared.Cqrs;
+using RestReactAspire.Infrastructure.Cqrs;
 
 namespace RestReactAspire.ExamService;
 
 public sealed class ExamInMemoryWriteCommandQueue : IWriteCommandQueue
 {
-    private readonly ExamWriteCommandHandler _handler;
+    private readonly IWriteCommandHandler _handler;
     private readonly WriteCommandResultCoordinator _resultCoordinator;
 
-    public ExamInMemoryWriteCommandQueue(ExamWriteCommandHandler handler, WriteCommandResultCoordinator resultCoordinator)
+    public ExamInMemoryWriteCommandQueue(IWriteCommandHandler handler, WriteCommandResultCoordinator resultCoordinator)
     {
         _handler = handler;
         _resultCoordinator = resultCoordinator;

@@ -37,7 +37,7 @@ Located in `RestReactAspire.Server.Tests/TestWebApplicationFactory.cs`:
 - Replaces the real LiteDB with an in-memory instance (`LiteDatabase(":memory:")`).
 - Forces in-memory CQRS queue via `Cqrs:UseInMemoryQueue = true`.
 - Sets environment to `"Testing"`.
-- Calls `LiteDbFactory.ConfigureMapper()` from `RestReactAspire.Shared` to register custom type serializers.
+- Calls `LiteDbFactory.ConfigureMapper()` from the service under test to register custom type serializers.
 
 ```csharp
 public class {Entity}EndpointTests : IClassFixture<TestWebApplicationFactory>

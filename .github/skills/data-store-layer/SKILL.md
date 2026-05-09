@@ -11,11 +11,11 @@ globs:
 - Uses **LiteDB** (embedded NoSQL database) via the `ILiteDatabase` interface.
 - **Each microservice has its own LiteDB database file and its own stores.** No shared database.
 - Connection string configured in each service's `Program.cs` with `Connection=shared` mode.
-- Custom serializers for `DateOnly` and `TimeOnly` are registered in `RestReactAspire.Shared/Stores/LiteDbFactory.ConfigureMapper()`.
-- Store classes (`PatientStore`, `DoctorStore`, `ExamStore`) are standalone classes in `RestReactAspire.Shared/Stores/`. Each service registers only the store(s) it needs.
+- Custom serializers for `DateOnly` and `TimeOnly` are registered in each service's own `Stores/LiteDbFactory.ConfigureMapper()`.
+- Store classes (`PatientStore`, `DoctorStore`, `ExamStore`) are standalone classes owned by each service (e.g., `PatientService.Stores.PatientStore`). Each service registers only the store(s) it needs.
 
 ## Store Pattern
-Each entity has a `{Entity}Store` class in its respective microservice (e.g., `PatientStore` in PatientService), extending the shared `BaseStore<T>`:
+Each entity has a `{Entity}Store` class in its respective microservice (e.g., `PatientStore` in PatientService):
 
 ```csharp
 public class {Entity}Store

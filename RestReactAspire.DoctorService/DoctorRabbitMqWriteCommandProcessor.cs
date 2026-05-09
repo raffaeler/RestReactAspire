@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RestReactAspire.Shared.Cqrs;
+using RestReactAspire.Infrastructure.Cqrs;
 
 namespace RestReactAspire.DoctorService;
 
@@ -11,14 +11,14 @@ public sealed class DoctorRabbitMqWriteCommandProcessor : BackgroundService
 {
     private readonly RabbitMqConnectionManager _connectionManager;
     private readonly RabbitMqOptions _options;
-    private readonly DoctorWriteCommandHandler _handler;
+    private readonly IWriteCommandHandler _handler;
     private readonly WriteCommandResultCoordinator _resultCoordinator;
     private readonly ILogger<DoctorRabbitMqWriteCommandProcessor> _logger;
 
     public DoctorRabbitMqWriteCommandProcessor(
         RabbitMqConnectionManager connectionManager,
         IOptions<RabbitMqOptions> options,
-        DoctorWriteCommandHandler handler,
+        IWriteCommandHandler handler,
         WriteCommandResultCoordinator resultCoordinator,
         ILogger<DoctorRabbitMqWriteCommandProcessor> logger)
     {

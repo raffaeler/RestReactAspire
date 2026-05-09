@@ -2,16 +2,15 @@
 name: Telemetry and Observability
 description: Add or modify OpenTelemetry instrumentation (Traces, Metrics, Logs) for API endpoints.
 globs:
-  - "RestReactAspire.Shared/Telemetry/**"
-  - "RestReactAspire.Shared/Extensions.cs"
   - "**/Telemetry/**"
+  - "**/Extensions.cs"
 ---
 
 # Telemetry and Observability
 
 ## Framework
 - Uses **OpenTelemetry** for distributed tracing, metrics, and structured logging.
-- Configured in `RestReactAspire.Shared/Extensions.cs` via `ConfigureOpenTelemetry()`, shared across all services.
+- Configured in each service's `Extensions.cs` via `ConfigureOpenTelemetry()`. Each microservice configures its own telemetry pipeline.
 - Each microservice registers its own telemetry sources and meters.
 
 ## Telemetry Class Pattern
@@ -40,7 +39,7 @@ public static class {Entity}Telemetry
 When adding a new telemetry class in a microservice:
 1. Add `.AddMeter({Entity}Telemetry.SourceName)` to the metrics configuration in the service's setup.
 2. Add `.AddSource({Entity}Telemetry.SourceName)` to the tracing configuration.
-3. Shared primitives are in `RestReactAspire.Shared/Telemetry/`.
+3. Register the telemetry sources and meters in the service's own OpenTelemetry configuration (Extensions.cs).
 
 ## Usage in Endpoints
 Every endpoint method must:

@@ -2,7 +2,7 @@
 name: LiteDB Configuration
 description: Configure LiteDB custom type serializers and manage database schema for the embedded NoSQL store.
 globs:
-  - "RestReactAspire.Shared/Stores/LiteDbFactory.cs"
+  - "**/Stores/LiteDbFactory.cs"
   - "**/Program.cs"
 ---
 
@@ -11,8 +11,8 @@ globs:
 ## Overview
 This project uses **LiteDB** as an embedded NoSQL document database to keep the solution simple and self-contained, avoiding schema migrations. **Each microservice owns its own LiteDB database file.**
 
-## LiteDbFactory in Shared Library
-The `LiteDbFactory.ConfigureMapper()` method lives in `RestReactAspire.Shared/Stores/LiteDbFactory.cs` and is called by every microservice at startup before creating its database instance.
+## LiteDbFactory (Per-Service)
+Each microservice has its own `LiteDbFactory.ConfigureMapper()` method in its `Stores/` directory (e.g., `PatientService.Stores.LiteDbFactory`, `DoctorService.Stores.LiteDbFactory`). This method is called by the owning microservice at startup before creating its database instance.
 
 ## Connection String
 Configured in each microservice's `Program.cs`:
@@ -23,7 +23,7 @@ builder.Services.AddSingleton<ILiteDatabase>(_ => new LiteDatabase(liteDbConnect
 ```
 
 ## Custom Type Serializers
-LiteDB does not natively support `DateOnly` and `TimeOnly`. Custom serializers are registered in `RestReactAspire.Shared/Stores/LiteDbFactory.ConfigureMapper()`:
+LiteDB does not natively support `DateOnly` and `TimeOnly`. Custom serializers are registered in each service's `Stores/LiteDbFactory.ConfigureMapper()`:
 
 ```csharp
 BsonMapper.Global.RegisterType(
@@ -55,6 +55,6 @@ Tests use in-memory LiteDB: `new LiteDatabase(":memory:")`.
 Always call `LiteDbFactory.ConfigureMapper()` before creating any database instance (including in tests).
 
 ## Adding New Types Requiring Custom Serialization
-1. Register the serializer in `RestReactAspire.Shared/Stores/LiteDbFactory.ConfigureMapper()`.
+1. Register the serializer in the service's `Stores/LiteDbFactory.ConfigureMapper()`.
 2. Add the pre-warm call for any new entity type.
 3. Ensure `ConfigureMapper()` is called before database creation in every microservice and test code.

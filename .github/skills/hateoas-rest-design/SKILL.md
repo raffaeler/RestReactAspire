@@ -3,7 +3,7 @@ name: HATEOAS REST Design
 description: Ensure all APIs follow HATEOAS REST principles with proper link relations, HTTP methods, and status codes.
 globs:
   - "**/Endpoints/**"
-  - "RestReactAspire.Shared/Models/Link.cs"
+  - "**/Models/Link.cs"
   - "frontend/src/api/apiClient.ts"
   - "frontend/src/types/hateoas.ts"
 ---

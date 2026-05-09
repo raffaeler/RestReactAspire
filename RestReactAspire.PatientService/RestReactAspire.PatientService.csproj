@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RestReactAspire.Shared\RestReactAspire.Shared.csproj" />
+    <ProjectReference Include="..\RestReactAspire.Infrastructure.Cqrs\RestReactAspire.Infrastructure.Cqrs.csproj" />
   </ItemGroup>
 
   <ItemGroup>

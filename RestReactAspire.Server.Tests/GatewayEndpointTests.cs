@@ -1,5 +1,5 @@
 using System.Net.Http.Json;
-using RestReactAspire.Shared.Models;
+using RestReactAspire.PatientService.Models;
 
 namespace RestReactAspire.Server.Tests;
 

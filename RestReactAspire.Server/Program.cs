@@ -1,7 +1,8 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using RestReactAspire.Server.Endpoints;
-using RestReactAspire.Shared.Models;
-using RestReactAspire.Shared.Telemetry;
+using RestReactAspire.Server.Models;
+using RestReactAspire.Server.Telemetry;
 using Scalar.AspNetCore;
 using Yarp.ReverseProxy.Configuration;
 
@@ -153,16 +154,13 @@ api.MapPost("admin/seed", async (IHttpClientFactory httpFactory, ILogger<Program
     // Seed statistics last (after all data is in place)
     var sResponse = await statsClient.PostAsync("/api/admin/seed", null);
 
-    var pResult = await pTask.Result.Content.ReadFromJsonAsync<SeedResponse>();
-    var dResult = await dTask.Result.Content.ReadFromJsonAsync<SeedResponse>();
-    var eResult = await eResponse.Content.ReadFromJsonAsync<SeedResponse>();
+    var pJson = await pTask.Result.Content.ReadFromJsonAsync<JsonDocument>();
+    var dJson = await dTask.Result.Content.ReadFromJsonAsync<JsonDocument>();
+    var eJson = await eResponse.Content.ReadFromJsonAsync<JsonDocument>();
 
-    var response = new SeedResponse(
-        PatientsCreated: pResult?.PatientsCreated ?? 0,
-        DoctorsCreated: dResult?.DoctorsCreated ?? 0,
-        ExamsCreated: eResult?.ExamsCreated ?? 0,
-        Links: [new Link("self", "/api/admin/seed", "POST"), new Link("stats", "/api/admin/stats", "GET")]);
+    int GetInt(JsonDocument? doc, string prop) => doc?.RootElement.TryGetProperty(prop, out var el) == true ? el.GetInt32() : 0;
 
+    var response = new { PatientsCreated = GetInt(pJson, "patientsCreated"), DoctorsCreated = GetInt(dJson, "doctorsCreated"), ExamsCreated = GetInt(eJson, "examsCreated"), Links = new[] { new Link("self", "/api/admin/seed", "POST"), new Link("stats", "/api/admin/stats", "GET") } };
     return Results.Ok(response);
 });
 
@@ -184,16 +182,13 @@ api.MapPost("admin/reset", async (IHttpClientFactory httpFactory, ILogger<Progra
 
     await Task.WhenAll(pTask, dTask, eTask, sTask);
 
-    var pResult = await pTask.Result.Content.ReadFromJsonAsync<ResetResponse>();
-    var dResult = await dTask.Result.Content.ReadFromJsonAsync<ResetResponse>();
-    var eResult = await eTask.Result.Content.ReadFromJsonAsync<ResetResponse>();
+    var pJson = await pTask.Result.Content.ReadFromJsonAsync<JsonDocument>();
+    var dJson = await dTask.Result.Content.ReadFromJsonAsync<JsonDocument>();
+    var eJson = await eTask.Result.Content.ReadFromJsonAsync<JsonDocument>();
 
-    var response = new ResetResponse(
-        PatientsDeleted: pResult?.PatientsDeleted ?? 0,
-        DoctorsDeleted: dResult?.DoctorsDeleted ?? 0,
-        ExamsDeleted: eResult?.ExamsDeleted ?? 0,
-        Links: [new Link("self", "/api/admin/reset", "POST"), new Link("seed", "/api/admin/seed", "POST")]);
+    int GetInt(JsonDocument? doc, string prop) => doc?.RootElement.TryGetProperty(prop, out var el) == true ? el.GetInt32() : 0;
 
+    var response = new { PatientsDeleted = GetInt(pJson, "patientsDeleted"), DoctorsDeleted = GetInt(dJson, "doctorsDeleted"), ExamsDeleted = GetInt(eJson, "examsDeleted"), Links = new[] { new Link("self", "/api/admin/reset", "POST"), new Link("seed", "/api/admin/seed", "POST") } };
     return Results.Ok(response);
 });
 
@@ -207,18 +202,17 @@ api.MapGet("admin/stats", async (IHttpClientFactory httpFactory, ILogger<Program
     var doctorsClient = httpFactory.CreateClient("doctors");
     var examsClient = httpFactory.CreateClient("exams");
 
-    var pTask = patientsClient.GetFromJsonAsync<StatsResponse>("/api/admin/stats");
-    var dTask = doctorsClient.GetFromJsonAsync<StatsResponse>("/api/admin/stats");
-    var eTask = examsClient.GetFromJsonAsync<StatsResponse>("/api/admin/stats");
+    var pResponse = await patientsClient.GetAsync("/api/admin/stats");
+    var dResponse = await doctorsClient.GetAsync("/api/admin/stats");
+    var eResponse = await examsClient.GetAsync("/api/admin/stats");
 
-    await Task.WhenAll(pTask, dTask, eTask);
+    var pJson = await pResponse.Content.ReadFromJsonAsync<JsonDocument>();
+    var dJson = await dResponse.Content.ReadFromJsonAsync<JsonDocument>();
+    var eJson = await eResponse.Content.ReadFromJsonAsync<JsonDocument>();
 
-    var response = new StatsResponse(
-        PatientCount: pTask.Result?.PatientCount ?? 0,
-        DoctorCount: dTask.Result?.DoctorCount ?? 0,
-        ExamCount: eTask.Result?.ExamCount ?? 0,
-        Links: [new Link("self", "/api/admin/stats", "GET"), new Link("seed", "/api/admin/seed", "POST")]);
+    int GetInt(JsonDocument? doc, string prop) => doc?.RootElement.TryGetProperty(prop, out var el) == true ? el.GetInt32() : 0;
 
+    var response = new { PatientCount = GetInt(pJson, "patientCount"), DoctorCount = GetInt(dJson, "doctorCount"), ExamCount = GetInt(eJson, "examCount"), Links = new[] { new Link("self", "/api/admin/stats", "GET"), new Link("seed", "/api/admin/seed", "POST") } };
     return Results.Ok(response);
 });
 
