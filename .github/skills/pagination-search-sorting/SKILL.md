@@ -1,5 +1,5 @@
 ---
-name: Pagination, Search, and Sorting
+name: Pagination Search and Sorting
 description: Implement server-side pagination, search filtering, and column sorting across API endpoints and frontend list pages.
 globs:
   - "RestReactAspire.Server/Stores/**"
