@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
 
 namespace RestReactAspire.Infrastructure.Cqrs;
 
@@ -36,6 +37,17 @@ public abstract class RabbitMqWriteCommandProcessorBase : BackgroundService
             {
                 using var channel = await _connectionManager.GetConnection()
                     .CreateChannelAsync(options: default, cancellationToken: stoppingToken);
+
+                await channel.ExchangeDeclareAsync(
+                    _options.ExchangeName,
+                    type: ExchangeType.Direct,
+                    durable: true,
+                    autoDelete: false,
+                    arguments: null,
+                    passive: false,
+                    noWait: false,
+                    cancellationToken: stoppingToken);
+
                 await channel.QueueDeclareAsync(
                     _options.QueueName,
                     durable: true,
@@ -43,6 +55,33 @@ public abstract class RabbitMqWriteCommandProcessorBase : BackgroundService
                     autoDelete: false,
                     arguments: null,
                     passive: false,
+                    noWait: false,
+                    cancellationToken: stoppingToken);
+
+                await channel.QueueBindAsync(
+                    _options.QueueName,
+                    _options.ExchangeName,
+                    routingKey: _options.QueueName,
+                    arguments: null,
+                    noWait: false,
+                    cancellationToken: stoppingToken);
+
+                // Bind to admin reset fanout exchange for broadcast reset commands
+                await channel.ExchangeDeclareAsync(
+                    _options.AdminResetExchangeName,
+                    type: ExchangeType.Fanout,
+                    durable: true,
+                    autoDelete: false,
+                    arguments: null,
+                    passive: false,
+                    noWait: false,
+                    cancellationToken: stoppingToken);
+
+                await channel.QueueBindAsync(
+                    _options.QueueName,
+                    _options.AdminResetExchangeName,
+                    routingKey: string.Empty,
+                    arguments: null,
                     noWait: false,
                     cancellationToken: stoppingToken);
 

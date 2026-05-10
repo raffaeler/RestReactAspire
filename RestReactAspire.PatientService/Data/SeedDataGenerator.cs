@@ -47,9 +47,13 @@ public static class SeedDataGenerator
             var areaCode = AreaCodes[rng.Next(AreaCodes.Length)];
             var phoneNumber = rng.Next(1000000, 9999999);
 
+            var guidBytes = new byte[16];
+            rng.NextBytes(guidBytes);
+            var id = new Guid(guidBytes);
+
             patients.Add(new Patient
             {
-                Id = Guid.NewGuid(),
+                Id = id,
                 FirstName = firstName,
                 LastName = lastName,
                 DateOfBirth = new DateOnly(year, month, day),

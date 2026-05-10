@@ -9,5 +9,7 @@ public sealed class RabbitMqOptions
     public string UserName { get; set; } = "guest";
     public string Password { get; set; } = "guest";
     public string VirtualHost { get; set; } = "/";
+    public string ExchangeName { get; set; } = "hospital.write.commands";
     public string QueueName { get; set; } = "hospital.write.commands";
+    public string AdminResetExchangeName { get; set; } = "hospital.admin.reset";
 }

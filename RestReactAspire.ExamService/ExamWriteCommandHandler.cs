@@ -87,6 +87,7 @@ public sealed class ExamWriteCommandHandler : IWriteCommandHandler
         var patientIds = SeedDataGenerator.GeneratePatientIds();
         var doctorIds = SeedDataGenerator.GenerateDoctorIds();
         var exams = SeedDataGenerator.GenerateExams(patientIds, doctorIds);
+        _examStore.DeleteAll();
         _examStore.InsertBulk(exams);
 
         return WriteCommandResult.Success(

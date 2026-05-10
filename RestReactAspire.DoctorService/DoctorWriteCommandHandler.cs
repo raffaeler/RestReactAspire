@@ -67,6 +67,7 @@ public sealed class DoctorWriteCommandHandler : IWriteCommandHandler
     private WriteCommandResult HandleSeedData()
     {
         var doctors = SeedDataGenerator.GenerateDoctors();
+        _doctorStore.DeleteAll();
         _doctorStore.InsertBulk(doctors);
 
         return WriteCommandResult.Success(doctorsAffected: doctors.Count);

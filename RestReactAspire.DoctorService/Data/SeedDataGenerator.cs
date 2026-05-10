@@ -50,9 +50,13 @@ public static class SeedDataGenerator
             var lastName = LastNames[rng.Next(LastNames.Length)];
             var specialty = Specialties[i % Specialties.Length];
 
+            var guidBytes = new byte[16];
+            rng.NextBytes(guidBytes);
+            var id = new Guid(guidBytes);
+
             doctors.Add(new Doctor
             {
-                Id = Guid.NewGuid(),
+                Id = id,
                 FirstName = firstName,
                 LastName = lastName,
                 Specialty = specialty,

@@ -30,6 +30,17 @@ public sealed class RabbitMqWriteCommandQueue : IWriteCommandQueue
 
         using var channel = await _connectionManager.GetConnection()
             .CreateChannelAsync(options: default, cancellationToken: cancellationToken);
+
+        await channel.ExchangeDeclareAsync(
+            _options.ExchangeName,
+            type: ExchangeType.Direct,
+            durable: true,
+            autoDelete: false,
+            arguments: null,
+            passive: false,
+            noWait: false,
+            cancellationToken: cancellationToken);
+
         await channel.QueueDeclareAsync(
             _options.QueueName,
             durable: true,
@@ -40,8 +51,16 @@ public sealed class RabbitMqWriteCommandQueue : IWriteCommandQueue
             noWait: false,
             cancellationToken: cancellationToken);
 
+        await channel.QueueBindAsync(
+            _options.QueueName,
+            _options.ExchangeName,
+            routingKey: _options.QueueName,
+            arguments: null,
+            noWait: false,
+            cancellationToken: cancellationToken);
+
         await channel.BasicPublishAsync(
-            exchange: string.Empty,
+            exchange: _options.ExchangeName,
             routingKey: _options.QueueName,
             mandatory: false,
             basicProperties: new BasicProperties { Persistent = true },

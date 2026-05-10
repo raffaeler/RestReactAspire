@@ -1,5 +1,9 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
+using RestReactAspire.Infrastructure.Cqrs;
 using RestReactAspire.Server.Endpoints;
 using RestReactAspire.Server.Models;
 using RestReactAspire.Server.Telemetry;
@@ -115,6 +119,10 @@ builder.Services.AddHttpClient("doctors", c => c.BaseAddress = new Uri(doctorUrl
 builder.Services.AddHttpClient("exams", c => c.BaseAddress = new Uri(examUrl));
 builder.Services.AddHttpClient("statistics", c => c.BaseAddress = new Uri(statisticsUrl));
 
+// RabbitMQ for admin fanout publish (reset broadcasts)
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+builder.Services.AddSingleton<RabbitMqConnectionManager>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -164,31 +172,89 @@ api.MapPost("admin/seed", async (IHttpClientFactory httpFactory, ILogger<Program
     return Results.Ok(response);
 });
 
-api.MapPost("admin/reset", async (IHttpClientFactory httpFactory, ILogger<Program> logger) =>
+api.MapPost("admin/reset", async (RabbitMqConnectionManager connectionManager, IOptions<RabbitMqOptions> options, IHttpClientFactory httpFactory, ILogger<Program> logger) =>
 {
     using var activity = AdminTelemetry.ActivitySource.StartActivity("ResetAll");
     AdminTelemetry.ResetExecuted.Add(1);
-    logger.LogInformation("Resetting all services...");
+    logger.LogInformation("Resetting all services via fanout exchange...");
 
+    // Snapshot current counts before reset
     var patientsClient = httpFactory.CreateClient("patients");
     var doctorsClient = httpFactory.CreateClient("doctors");
     var examsClient = httpFactory.CreateClient("exams");
-    var statsClient = httpFactory.CreateClient("statistics");
 
-    var pTask = patientsClient.PostAsync("/api/admin/reset", null);
-    var dTask = doctorsClient.PostAsync("/api/admin/reset", null);
-    var eTask = examsClient.PostAsync("/api/admin/reset", null);
-    var sTask = statsClient.PostAsync("/api/admin/reset", null);
+    var preP = await patientsClient.GetAsync("/api/admin/stats");
+    var preD = await doctorsClient.GetAsync("/api/admin/stats");
+    var preE = await examsClient.GetAsync("/api/admin/stats");
 
-    await Task.WhenAll(pTask, dTask, eTask, sTask);
-
-    var pJson = await pTask.Result.Content.ReadFromJsonAsync<JsonDocument>();
-    var dJson = await dTask.Result.Content.ReadFromJsonAsync<JsonDocument>();
-    var eJson = await eTask.Result.Content.ReadFromJsonAsync<JsonDocument>();
+    var prePJson = await preP.Content.ReadFromJsonAsync<JsonDocument>();
+    var preDJson = await preD.Content.ReadFromJsonAsync<JsonDocument>();
+    var preEJson = await preE.Content.ReadFromJsonAsync<JsonDocument>();
 
     int GetInt(JsonDocument? doc, string prop) => doc?.RootElement.TryGetProperty(prop, out var el) == true ? el.GetInt32() : 0;
+    var patientsBefore = GetInt(prePJson, "patientCount");
+    var doctorsBefore = GetInt(preDJson, "doctorCount");
+    var examsBefore = GetInt(preEJson, "examCount");
 
-    var response = new { PatientsDeleted = GetInt(pJson, "patientsDeleted"), DoctorsDeleted = GetInt(dJson, "doctorsDeleted"), ExamsDeleted = GetInt(eJson, "examsDeleted"), Links = new[] { new Link("self", "/api/admin/reset", "POST"), new Link("seed", "/api/admin/seed", "POST") } };
+    // Publish ResetDataCommand to fanout exchange (all services receive it simultaneously)
+    var opts = options.Value;
+    var envelope = WriteCommandEnvelope.Create(Guid.NewGuid(), new ResetDataCommand());
+    var payload = JsonSerializer.Serialize(envelope);
+    var body = Encoding.UTF8.GetBytes(payload);
+
+    using var channel = await connectionManager.GetConnection()
+        .CreateChannelAsync(options: default, cancellationToken: CancellationToken.None);
+
+    await channel.ExchangeDeclareAsync(
+        opts.AdminResetExchangeName,
+        type: ExchangeType.Fanout,
+        durable: true,
+        autoDelete: false,
+        arguments: null,
+        passive: false,
+        noWait: false,
+        cancellationToken: CancellationToken.None);
+
+    await channel.BasicPublishAsync(
+        exchange: opts.AdminResetExchangeName,
+        routingKey: string.Empty,
+        mandatory: false,
+        basicProperties: new BasicProperties { Persistent = true },
+        body: body,
+        cancellationToken: CancellationToken.None);
+
+    logger.LogInformation("Published ResetDataCommand to fanout exchange {Exchange}; {P} patients, {D} doctors, {E} exams deleted",
+        opts.AdminResetExchangeName, patientsBefore, doctorsBefore, examsBefore);
+
+    // Poll until all services confirm reset (up to 3 seconds)
+    for (int attempt = 0; attempt < 6; attempt++)
+    {
+        await Task.Delay(500);
+
+        var postP = await patientsClient.GetAsync("/api/admin/stats");
+        var postD = await doctorsClient.GetAsync("/api/admin/stats");
+        var postE = await examsClient.GetAsync("/api/admin/stats");
+
+        var postPJson = await postP.Content.ReadFromJsonAsync<JsonDocument>();
+        var postDJson = await postD.Content.ReadFromJsonAsync<JsonDocument>();
+        var postEJson = await postE.Content.ReadFromJsonAsync<JsonDocument>();
+
+        if (GetInt(postPJson, "patientCount") == 0
+            && GetInt(postDJson, "doctorCount") == 0
+            && GetInt(postEJson, "examCount") == 0)
+        {
+            logger.LogInformation("Reset confirmed: all services report 0 records after attempt {Attempt}", attempt + 1);
+            break;
+        }
+    }
+
+    var response = new
+    {
+        PatientsDeleted = patientsBefore,
+        DoctorsDeleted = doctorsBefore,
+        ExamsDeleted = examsBefore,
+        Links = new[] { new Link("self", "/api/admin/reset", "POST"), new Link("seed", "/api/admin/seed", "POST") }
+    };
     return Results.Ok(response);
 });
 

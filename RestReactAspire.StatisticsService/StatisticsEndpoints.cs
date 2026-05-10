@@ -244,6 +244,10 @@ public static class StatisticsEndpoints
             var doctors = SeedDataGenerator.GenerateDoctorEntities(doctorIds);
             var exams = SeedDataGenerator.GenerateExamEntities(examIds, patientIds, doctorIds);
 
+            patientsCol.DeleteAll();
+            doctorsCol.DeleteAll();
+            examsCol.DeleteAll();
+
             patientsCol.InsertBulk(patients);
             doctorsCol.InsertBulk(doctors);
             examsCol.InsertBulk(exams);

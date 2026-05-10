@@ -173,7 +173,9 @@ public static class SeedDataGenerator
             rng.Next(1, 29);
             rng.Next(10); // AreaCodes
             rng.Next(1000000, 9999999);
-            ids.Add(Guid.NewGuid());
+            var guidBytes = new byte[16];
+            rng.NextBytes(guidBytes);
+            ids.Add(new Guid(guidBytes));
         }
         return ids;
     }
@@ -190,7 +192,9 @@ public static class SeedDataGenerator
             rng.Next(FirstNames.Length);
             rng.Next(LastNames.Length);
             // Specialty is consumed via i % Specialties.Length (no random for that)
-            ids.Add(Guid.NewGuid());
+            var guidBytes = new byte[16];
+            rng.NextBytes(guidBytes);
+            ids.Add(new Guid(guidBytes));
         }
         return ids;
     }
@@ -238,9 +242,12 @@ public static class SeedDataGenerator
 
             string? notes = ExamNotes[rng.Next(ExamNotes.Length)];
 
+            var examGuidBytes = new byte[16];
+            rng.NextBytes(examGuidBytes);
+
             exams.Add(new Exam
             {
-                Id = Guid.NewGuid(),
+                Id = new Guid(examGuidBytes),
                 PatientId = patientId,
                 DoctorId = doctorId,
                 Type = examType,

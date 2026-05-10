@@ -40,7 +40,12 @@ public static class SeedDataGenerator
     {
         var rng = new Random(42);
         var ids = new List<Guid>(100);
-        for (int i = 0; i < 100; i++) ids.Add(Guid.NewGuid());
+        for (int i = 0; i < 100; i++)
+        {
+            var guidBytes = new byte[16];
+            rng.NextBytes(guidBytes);
+            ids.Add(new Guid(guidBytes));
+        }
         return ids;
     }
 
@@ -48,7 +53,12 @@ public static class SeedDataGenerator
     {
         var rng = new Random(123);
         var ids = new List<Guid>(30);
-        for (int i = 0; i < 30; i++) ids.Add(Guid.NewGuid());
+        for (int i = 0; i < 30; i++)
+        {
+            var guidBytes = new byte[16];
+            rng.NextBytes(guidBytes);
+            ids.Add(new Guid(guidBytes));
+        }
         return ids;
     }
 
@@ -56,7 +66,12 @@ public static class SeedDataGenerator
     {
         var rng = new Random(456);
         var ids = new List<Guid>(200);
-        for (int i = 0; i < 200; i++) ids.Add(Guid.NewGuid());
+        for (int i = 0; i < 200; i++)
+        {
+            var guidBytes = new byte[16];
+            rng.NextBytes(guidBytes);
+            ids.Add(new Guid(guidBytes));
+        }
         return ids;
     }
 
