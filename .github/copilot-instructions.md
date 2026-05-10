@@ -22,6 +22,9 @@ The **Server** is now a YARP gateway with no database, stores, or business logic
 3. **Seed must be sequential**: patients+doctors first, then exams (which reference both), then statistics. All services use `SeedDataGenerator` with fixed `Random` seeds for deterministic, matching GUIDs.
 4. **Each service has its own CQRS pipeline** — own handler, in-memory queue, RabbitMQ processor. CQRS abstractions (interfaces, envelope types, coordinator) live in `RestReactAspire.Infrastructure.Cqrs`; each service implements its own concrete handler, processor, and queue.
 5. **Test projects use marker classes** (e.g., `PatientServiceMarker`) to disambiguate multiple `Program` types. Use `TestWebApplicationFactory<TMarker>` pattern.
+6. Calls to methods accepting CancellationToken must use TestContext.Current.CancellationToken to allow test cancellation to be more responsive.
+7. When needed, you must always update the documentation, skills, or copilot instructions.
+8. Private members must always follow the official naming convention: `_` followed by camelCase.
 
 ## Scenario
 A day-hospital system for managing patients, doctors, and medical exams. Features include CRUD operations, server-side pagination/search/sorting, statistics dashboards, seed data management, and full OpenTelemetry observability.

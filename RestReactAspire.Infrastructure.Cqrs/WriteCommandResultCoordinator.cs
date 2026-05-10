@@ -4,7 +4,7 @@ namespace RestReactAspire.Infrastructure.Cqrs;
 
 public sealed class WriteCommandResultCoordinator
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan _defaultTimeout = TimeSpan.FromSeconds(10);
     private readonly ConcurrentDictionary<Guid, TaskCompletionSource<WriteCommandResult>> _pending = new();
 
     public void Prepare(Guid commandId)
@@ -29,7 +29,7 @@ public sealed class WriteCommandResultCoordinator
 
         try
         {
-            return await source.Task.WaitAsync(DefaultTimeout, cancellationToken);
+            return await source.Task.WaitAsync(_defaultTimeout, cancellationToken);
         }
         catch (TimeoutException)
         {

@@ -15,10 +15,10 @@ public class GatewayEndpointTests : IClassFixture<TestWebApplicationFactory<Rest
     [Fact]
     public async Task GetApiRoot_ReturnsOk_WithAllExpectedLinks()
     {
-        var response = await _client.GetAsync("/api");
+        var response = await _client.GetAsync("/api", TestContext.Current.CancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var root = await response.Content.ReadFromJsonAsync<ApiRootResponse>();
+        var root = await response.Content.ReadFromJsonAsync<ApiRootResponse>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(root);
         Assert.Contains(root.Links, l => l.Rel == "self");
         Assert.Contains(root.Links, l => l.Rel == "patients");
@@ -36,10 +36,10 @@ public class GatewayEndpointTests : IClassFixture<TestWebApplicationFactory<Rest
     [Fact]
     public async Task GetApiRoot_SelfLink_HasCorrectMethod()
     {
-        var response = await _client.GetAsync("/api");
+        var response = await _client.GetAsync("/api", TestContext.Current.CancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var root = await response.Content.ReadFromJsonAsync<ApiRootResponse>();
+        var root = await response.Content.ReadFromJsonAsync<ApiRootResponse>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(root);
         var selfLink = root.Links.Single(l => l.Rel == "self");
         Assert.Equal("/api", selfLink.Href);
@@ -49,10 +49,10 @@ public class GatewayEndpointTests : IClassFixture<TestWebApplicationFactory<Rest
     [Fact]
     public async Task GetApiRoot_AdminSeedLink_HasCorrectMethod()
     {
-        var response = await _client.GetAsync("/api");
+        var response = await _client.GetAsync("/api", TestContext.Current.CancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var root = await response.Content.ReadFromJsonAsync<ApiRootResponse>();
+        var root = await response.Content.ReadFromJsonAsync<ApiRootResponse>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(root);
         var seedLink = root.Links.Single(l => l.Rel == "admin-seed");
         Assert.Equal("POST", seedLink.Method);

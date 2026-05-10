@@ -9,8 +9,8 @@ public static class RootTelemetry
 
     public static readonly ActivitySource ActivitySource = new(SourceName);
 
-    private static readonly Meter Meter = new(SourceName);
+    private static readonly Meter _meter = new(SourceName);
 
-    public static readonly Counter<long> ApiRootQueried = Meter.CreateCounter<long>(
+    public static readonly Counter<long> ApiRootQueried = _meter.CreateCounter<long>(
         "hospital.api_root.queried", description: "Number of times API root was queried");
 }
