@@ -354,6 +354,114 @@ Store unit test classes implement `IDisposable` to deterministically release in-
 | `DoctorStoreTests` | `Tests\DoctorStoreTests.cs` | Same pattern |
 | `ExamStoreTests` | `Tests\ExamStoreTests.cs` | Same pattern |
 
+### 4.17 Messaging Topology — RabbitMQ Exchanges and Queues
+
+The solution uses two RabbitMQ exchange types, chosen for their distinct routing behaviours. The CQRS write pipeline uses a **Direct Exchange** for point-to-point command delivery, while admin reset operations use a **Fanout Exchange** for broadcast to all services. Each service declares its own queue with a unique name to prevent cross-service message consumption.
+
+#### Schematic View
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                       LavinMQ / RabbitMQ Broker                       │
+│                                                                       │
+│  ┌─────────────────────────────────────────┐                         │
+│  │  Direct Exchange: hospital.write.commands│                         │
+│  │  (type: direct, durable: true)           │                         │
+│  │                                          │                         │
+│  │  routing key = "hospital.patient..." ────► queue: hospital.patient.write.commands    │
+│  │  routing key = "hospital.doctor..."  ────► queue: hospital.doctor.write.commands     │
+│  │  routing key = "hospital.exam..."    ────► queue: hospital.exam.write.commands       │
+│  │  routing key = "hospital.statistics..."──► queue: hospital.statistics.write.commands │
+│  └─────────────────────────────────────────┘                         │
+│                                                                       │
+│  ┌─────────────────────────────────────────┐                         │
+│  │  Fanout Exchange: hospital.admin.reset    │                         │
+│  │  (type: fanout, durable: true)           │                         │
+│  │                                          │                         │
+│  │  broadcast ──┬──► hospital.patient.write.commands     │
+│  │              ├──► hospital.doctor.write.commands      │
+│  │              ├──► hospital.exam.write.commands        │
+│  │              └──► hospital.statistics.write.commands  │
+│  └─────────────────────────────────────────┘                         │
+└─────────────────────────────────────────────────────────────────────┘
+
+Publisher (Server) ──► Direct Exchange ──► Target Service Queue ──► BackgroundService Consumer
+                           │
+Publisher (Server) ──► Fanout Exchange ──► ALL Service Queues ──► BackgroundService Consumers
+```
+
+#### 4.17.1 Direct Exchange — Point-to-Point CQRS Commands
+
+**Exchange:** `hospital.write.commands` (type: `direct`, durable)
+
+**Why Direct?** Each write command (`CreatePatientCommand`, `UpdateExamCommand`, etc.) targets exactly one microservice — the service that owns the entity. A direct exchange routes each message to the queue whose routing key matches exactly. This provides **point-to-point** semantics with no risk of another service consuming a command meant for a different service.
+
+| Aspect | Detail |
+|--------|--------|
+| Exchange name | `hospital.write.commands` |
+| Exchange type | `direct` |
+| Routing strategy | `routingKey` = queue name (exact match) |
+| Queue-per-service | `hospital.patient.write.commands`, `hospital.doctor.write.commands`, `hospital.exam.write.commands`, `hospital.statistics.write.commands` |
+| Publisher | `RabbitMqWriteCommandQueue.EnqueueAsync()` called by individual service endpoints (e.g., PatientService writes Patient commands to its own queue) |
+| Consumer | Per-service `BackgroundService` subclass (e.g., `PatientRabbitMqWriteCommandProcessor`) runs `BasicGetAsync` in a loop |
+
+**How it works:**
+1. A service endpoint (e.g., `POST /api/patients`) calls `IWriteCommandQueue.EnqueueAsync()`.
+2. The `RabbitMqWriteCommandQueue` declares the direct exchange and its service-specific queue, binds them with the queue name as routing key, and publishes the `WriteCommandEnvelope`.
+3. The service's `BackgroundService` (e.g., `PatientRabbitMqWriteCommandProcessor`) polls the queue and dispatches commands to its `IWriteCommandHandler`.
+4. The handler processes the command against the service's own LiteDB store.
+
+**Why per-service queue names?** Each service must have its own queue name (e.g., `hospital.patient.write.commands` vs `hospital.doctor.write.commands`). If all services shared the same queue name, messages would be consumed round-robin by any service — causing `TaskCanceledException` and silent failures when a Patient command lands in the Doctor service's handler.
+
+#### 4.17.2 Fanout Exchange — Broadcast Admin Reset
+
+**Exchange:** `hospital.admin.reset` (type: `fanout`, durable)
+
+**Why Fanout?** The admin reset operation (`POST /api/admin/reset` at the gateway) needs ALL services to clear their data simultaneously. A fanout exchange delivers every published message to **all** bound queues, regardless of routing key. This provides **publish-subscribe** semantics: one publish reaches every consumer.
+
+| Aspect | Detail |
+|--------|--------|
+| Exchange name | `hospital.admin.reset` |
+| Exchange type | `fanout` |
+| Routing strategy | Broadcast (routing key ignored — all bound queues receive every message) |
+| Publisher | Server gateway — publishes `ResetDataCommand` via `BasicPublishAsync` |
+| Consumers | All 4 services bind their individual queues to this exchange via `QueueBindAsync` with empty routing key |
+| Binding | Each `RabbitMqWriteCommandProcessorBase` declares the fanout exchange and binds its service queue to it at startup |
+
+**How it works:**
+1. The Server gateway receives `POST /api/admin/reset`.
+2. Before publishing, the gateway snapshots current counts from all services via HTTP for the response.
+3. The gateway declares the fanout exchange and publishes a `ResetDataCommand` envelope to it (routing key = empty string).
+4. All 4 services, having bound their queues to this exchange, receive the command simultaneously.
+5. Each service's `IWriteCommandHandler` clears its own LiteDB collection.
+
+**Why fanout and not HTTP fan-out?** The fanout exchange provides **fire-and-forget** broadcast semantics: the gateway publishes once and all services process independently. If a service is temporarily unhealthy, the message persists in its durable queue and is consumed when the service recovers. This is more resilient than HTTP fan-out where a failing service requires retry logic in the gateway.
+
+#### 4.17.3 Queue Configuration Summary
+
+| Service | Queue Name | Bound Exchanges |
+|---------|-----------|-----------------|
+| PatientService | `hospital.patient.write.commands` | `hospital.write.commands` (direct) + `hospital.admin.reset` (fanout) |
+| DoctorService | `hospital.doctor.write.commands` | `hospital.write.commands` (direct) + `hospital.admin.reset` (fanout) |
+| ExamService | `hospital.exam.write.commands` | `hospital.write.commands` (direct) + `hospital.admin.reset` (fanout) |
+| StatisticsService | `hospital.statistics.write.commands` | `hospital.write.commands` (direct) + `hospital.admin.reset` (fanout) |
+
+#### 4.17.4 In-Memory Fallback (Testing Mode)
+
+When `Cqrs:UseInMemoryQueue` is `true` (default in `Testing` environment), RabbitMQ is bypassed entirely:
+
+- `IWriteCommandQueue` resolves to the service's `InMemoryWriteCommandQueue`, which synchronously calls `IWriteCommandHandler.Handle()` and completes the result via `WriteCommandResultCoordinator`.
+- No exchange, queue, or broker is involved — commands execute in-process on the HTTP request thread.
+- This allows integration tests to run without a running RabbitMQ instance.
+
+| Where | File | Details |
+|-------|------|---------|
+| Direct exchange + queue binding | `RestReactAspire.Infrastructure.Cqrs\RabbitMqWriteCommandQueue.cs` | Producer-side: declares exchange, queue, binds, publishes |
+| Fanout exchange + queue binding | `RestReactAspire.Infrastructure.Cqrs\RabbitMqWriteCommandProcessor.cs` | Consumer-side: declares both exchanges, binds queue to both |
+| Admin reset publish | `Server\Program.cs` | Gateway publishes to fanout exchange |
+| Queue name config | `{Service}\appsettings.json` → `RabbitMq:QueueName` | Per-service unique queue names |
+| Exchange config | `RestReactAspire.Infrastructure.Cqrs\RabbitMqOptions.cs` | `ExchangeName`, `AdminResetExchangeName`, `QueueName` |
+
 ---
 
 ## 5. Patterns and Methodologies: Gaps & Potential Additions
