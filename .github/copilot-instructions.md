@@ -24,7 +24,7 @@ The **Server** is now a YARP gateway with no database, stores, or business logic
 5. **Test projects use marker classes** (e.g., `PatientServiceMarker`) to disambiguate multiple `Program` types. Use `TestWebApplicationFactory<TMarker>` pattern.
 6. Calls to methods accepting CancellationToken must use TestContext.Current.CancellationToken to allow test cancellation to be more responsive.
 7. When needed, you must always update the documentation, skills, or copilot instructions.
-8. Private members must always follow the official naming convention: `_` followed by camelCase.
+8. Private const and members must always follow the official naming convention: `_` followed by camelCase.
 
 ## Scenario
 A day-hospital system for managing patients, doctors, and medical exams. Features include CRUD operations, server-side pagination/search/sorting, statistics dashboards, seed data management, and full OpenTelemetry observability.

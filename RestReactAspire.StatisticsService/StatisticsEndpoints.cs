@@ -66,10 +66,10 @@ public static class StatisticsEndpoints
         else if (httpFactory is not null)
         {
             var patientsClient = httpFactory.CreateClient("patients");
-            var patients = await patientsClient.GetFromJsonAsync<List<PatientSummary>>("/api/patients?page=1&pageSize=10000");
-            if (patients is null)
+            var patientsResponse = await patientsClient.GetFromJsonAsync<ListResponseWrapper<PatientSummary>>("/api/patients?page=1&pageSize=10000");
+            if (patientsResponse?.Items is null)
                 return Results.Problem("Failed to retrieve patient data from PatientService", statusCode: StatusCodes.Status502BadGateway);
-            datesOfBirth = patients.Select(p => p.DateOfBirth).ToArray();
+            datesOfBirth = patientsResponse.Items.Select(p => p.DateOfBirth).ToArray();
         }
         else
         {
@@ -118,12 +118,12 @@ public static class StatisticsEndpoints
         {
             var examsClient = httpFactory.CreateClient("exams");
             var doctorsClient = httpFactory.CreateClient("doctors");
-            var exams = await examsClient.GetFromJsonAsync<List<ExamSummary>>("/api/exams?page=1&pageSize=10000");
-            var doctors = await doctorsClient.GetFromJsonAsync<List<DoctorSummary>>("/api/doctors?page=1&pageSize=10000");
-            if (exams is null || doctors is null)
+            var examsResponse = await examsClient.GetFromJsonAsync<ListResponseWrapper<ExamSummary>>("/api/exams?page=1&pageSize=10000");
+            var doctorsResponse = await doctorsClient.GetFromJsonAsync<ListResponseWrapper<DoctorSummary>>("/api/doctors?page=1&pageSize=10000");
+            if (examsResponse?.Items is null || doctorsResponse?.Items is null)
                 return Results.Problem("Failed to retrieve data from services", statusCode: StatusCodes.Status502BadGateway);
-            var doctorDict = doctors.ToDictionary(d => d.Id);
-            data = exams
+            var doctorDict = doctorsResponse.Items.ToDictionary(d => d.Id);
+            data = examsResponse.Items
                 .Where(e => e.DoctorId.HasValue && doctorDict.ContainsKey(e.DoctorId.Value))
                 .Select(e => (e.DoctorId, doctorDict[e.DoctorId!.Value].FirstName, doctorDict[e.DoctorId!.Value].LastName, doctorDict[e.DoctorId!.Value].Specialty))
                 .ToList();
@@ -162,10 +162,10 @@ public static class StatisticsEndpoints
         else if (httpFactory is not null)
         {
             var examsClient = httpFactory.CreateClient("exams");
-            var exams = await examsClient.GetFromJsonAsync<List<ExamSummary>>("/api/exams?page=1&pageSize=10000");
-            if (exams is null)
+            var examsResponse = await examsClient.GetFromJsonAsync<ListResponseWrapper<ExamSummary>>("/api/exams?page=1&pageSize=10000");
+            if (examsResponse?.Items is null)
                 return Results.Problem("Failed to retrieve exam data from ExamService", statusCode: StatusCodes.Status502BadGateway);
-            source = exams.Select(e => (e.ScheduledDate, 1)).ToList();
+            source = examsResponse.Items.Select(e => (e.ScheduledDate, 1)).ToList();
         }
         else
         {
@@ -197,10 +197,10 @@ public static class StatisticsEndpoints
         else if (httpFactory is not null)
         {
             var examsClient = httpFactory.CreateClient("exams");
-            var exams = await examsClient.GetFromJsonAsync<List<ExamSummary>>("/api/exams?page=1&pageSize=10000");
-            if (exams is null)
+            var examsResponse = await examsClient.GetFromJsonAsync<ListResponseWrapper<ExamSummary>>("/api/exams?page=1&pageSize=10000");
+            if (examsResponse?.Items is null)
                 return Results.Problem("Failed to retrieve exam data from ExamService", statusCode: StatusCodes.Status502BadGateway);
-            source = exams.Select(e => (e.Type, e.ScheduledDate, e.DurationMinutes)).ToList();
+            source = examsResponse.Items.Select(e => (e.Type, e.ScheduledDate, e.DurationMinutes)).ToList();
         }
         else
         {
